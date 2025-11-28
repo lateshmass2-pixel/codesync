@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import Editor from "@monaco-editor/react"
 import {
   MessageSquare,
@@ -47,45 +47,31 @@ interface WorkspaceProps {
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
   
-  const [files, setFiles] = React.useState<FileNode[]>([])
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [files, setFiles] = useState<FileNode[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
-  const [selectedFile, setSelectedFile] = React.useState<string | null>(null)
-  const [fileContent, setFileContent] = React.useState<string>("")
-  const [loadingFile, setLoadingFile] = React.useState(false)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [fileContent, setFileContent] = useState<string>("")
+  const [loadingFile, setLoadingFile] = useState(false)
 
-  const [messages, setMessages] = React.useState<ChatMessage[]>([])
-  const [inputMessage, setInputMessage] = React.useState("")
-  const [isSendingMessage, setIsSendingMessage] = React.useState(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [inputMessage, setInputMessage] = useState("")
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
 
-  const [pendingChanges, setPendingChanges] = React.useState<Array<{ path: string; content: string }>>([])
-  const [isDeploying, setIsDeploying] = React.useState(false)
-  const [deployResult, setDeployResult] = React.useState<{
+  const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content: string }>>([])
+  const [isDeploying, setIsDeploying] = useState(false)
+  const [deployResult, setDeployResult] = useState<{
     success: boolean
     message: string
   } | null>(null)
 
-  const chatEndRef = React.useRef<HTMLDivElement>(null)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
-  // Load file tree on mount
-  React.useEffect(() => {
-    loadFileTree()
-  }, [repoFullName, loadFileTree])
-
-  // Load file content when selected
-  React.useEffect(() => {
-    if (selectedFile) {
-      loadFileContent(selectedFile)
-    }
-  }, [selectedFile, loadFileContent])
-
-  // Scroll to bottom of chat
-  React.useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  const loadFileTree = React.useCallback(async () => {
+  // ---------------------------------------------------------
+  // 1. DEFINE THE FUNCTION FIRST (Wrap in useCallback)
+  // ---------------------------------------------------------
+  const loadFileTree = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     
@@ -99,7 +85,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }, [repoFullName])
 
-  const loadFileContent = React.useCallback(async (path: string) => {
+  const loadFileContent = useCallback(async (path: string) => {
     setLoadingFile(true)
     
     try {
@@ -112,6 +98,25 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       setLoadingFile(false)
     }
   }, [repoFullName])
+
+  // ---------------------------------------------------------
+  // 2. THEN CALL IT IN USEEFFECT
+  // ---------------------------------------------------------
+  useEffect(() => {
+    loadFileTree()
+  }, [loadFileTree])
+
+  // Load file content when selected
+  useEffect(() => {
+    if (selectedFile) {
+      loadFileContent(selectedFile)
+    }
+  }, [selectedFile, loadFileContent])
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   const handleSelectFile = (path: string) => {
     setSelectedFile(path)
