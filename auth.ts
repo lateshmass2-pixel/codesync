@@ -1,60 +1,32 @@
-import NextAuth from "next-auth";
-import GitHub from "next-auth/providers/github";
-
-const githubClientId = process.env.AUTH_GITHUB_ID;
-const githubClientSecret = process.env.AUTH_GITHUB_SECRET;
-
-if (!githubClientId || !githubClientSecret) {
-  throw new Error("Missing GitHub OAuth environment variables.");
-}
+import NextAuth from "next-auth"
+import GitHub from "next-auth/providers/github"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  session: {
-    strategy: "jwt",
-  },
   providers: [
     GitHub({
-      clientId: githubClientId,
-      clientSecret: githubClientSecret,
+      clientId: process.env.AUTH_GITHUB_ID,
+      clientSecret: process.env.AUTH_GITHUB_SECRET,
+      // Crucial: Request permission to write to repos
       authorization: {
         params: {
-          scope: "read:user user:email repo",
+          scope: "read:user repo",
         },
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    // 1. Capture the access token from GitHub when user logs in
+    async jwt({ token, account }) {
       if (account) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
-        if (profile && typeof profile.id !== "undefined") {
-          token.githubId = String(profile.id);
-        }
+        token.accessToken = account.access_token
       }
-
-      return token;
+      return token
     },
+    // 2. Pass that token to the client session so we can use it
     async session({ session, token }) {
-      if (token.accessToken) {
-        session.accessToken = token.accessToken as string;
-      }
-
-      if (session.user) {
-        if (token.sub) {
-          session.user.id = token.sub;
-        }
-
-        if (token.githubId) {
-          session.user.githubId = token.githubId as string;
-        }
-      }
-
-      return session;
+      // @ts-ignore // Ignore type error for quick setup
+      session.accessToken = token.accessToken
+      return session
     },
   },
-  pages: {
-    signIn: "/",
-  },
-});
+})
