@@ -10,33 +10,47 @@ import {
   CheckCircle,
   AlertCircle,
   GitCommit,
+  Folder,
+  File,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { FileTree } from "@/components/workspace/FileTree"
-import { useGitHubRepo } from "@/lib/workspace/hooks/useGitHubRepo"
-import { commitChanges } from "@/app/actions/workspace"
-import type { FileChange, AIResponse } from "@/lib/workspace/types"
+import { 
+  getFileTree, 
+  getFileContent, 
+  generateCodeWithGemini, 
+  deployChanges 
+} from "@/app/actions/workspace"
 
-interface WorkspaceProps {
-  owner: string
-  repo: string
-  branch?: string
+interface FileNode {
+  name: string
+  path: string
+  type: "file" | "dir"
+  size?: number
+  children?: FileNode[]
 }
 
 interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
-  changes?: FileChange[]
+  changes?: Array<{ path: string; content: string }>
 }
 
-export function Workspace({ owner, repo, branch = "main" }: WorkspaceProps) {
-  const { files, isLoading, error, refreshFiles, getFileContent } =
-    useGitHubRepo({ owner, repo, branch })
+interface WorkspaceProps {
+  owner: string
+  repo: string
+}
 
+export function Workspace({ owner, repo }: WorkspaceProps) {
+  const repoFullName = `${owner}/${repo}`
+  
+  const [files, setFiles] = React.useState<FileNode[]>([])
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  
   const [selectedFile, setSelectedFile] = React.useState<string | null>(null)
   const [fileContent, setFileContent] = React.useState<string>("")
   const [loadingFile, setLoadingFile] = React.useState(false)
@@ -45,7 +59,7 @@ export function Workspace({ owner, repo, branch = "main" }: WorkspaceProps) {
   const [inputMessage, setInputMessage] = React.useState("")
   const [isSendingMessage, setIsSendingMessage] = React.useState(false)
 
-  const [pendingChanges, setPendingChanges] = React.useState<FileChange[]>([])
+  const [pendingChanges, setPendingChanges] = React.useState<Array<{ path: string; content: string }>>([])
   const [isDeploying, setIsDeploying] = React.useState(false)
   const [deployResult, setDeployResult] = React.useState<{
     success: boolean
@@ -54,48 +68,53 @@ export function Workspace({ owner, repo, branch = "main" }: WorkspaceProps) {
 
   const chatEndRef = React.useRef<HTMLDivElement>(null)
 
+  // Load file tree on mount
+  React.useEffect(() => {
+    loadFileTree()
+  }, [repoFullName, loadFileTree])
+
   // Load file content when selected
   React.useEffect(() => {
     if (selectedFile) {
-      setLoadingFile(true)
-      getFileContent(selectedFile)
-        .then((content) => {
-          setFileContent(content || "")
-        })
-        .finally(() => {
-          setLoadingFile(false)
-        })
+      loadFileContent(selectedFile)
     }
-  }, [selectedFile, getFileContent])
+  }, [selectedFile, loadFileContent])
 
   // Scroll to bottom of chat
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  const loadFileTree = React.useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const fileTree = await getFileTree(repoFullName)
+      setFiles(fileTree)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load repository")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [repoFullName])
+
+  const loadFileContent = React.useCallback(async (path: string) => {
+    setLoadingFile(true)
+    
+    try {
+      const content = await getFileContent(repoFullName, path)
+      setFileContent(content || "")
+    } catch (err) {
+      console.error("Failed to load file content:", err)
+      setFileContent("// Failed to load file content")
+    } finally {
+      setLoadingFile(false)
+    }
+  }, [repoFullName])
+
   const handleSelectFile = (path: string) => {
     setSelectedFile(path)
-  }
-
-  const buildSystemPrompt = () => {
-    const fileList = files.map((f) => f.path).join("\n")
-    return `You are an expert developer. Here is the file structure of the current project:
-
-${fileList}
-
-When the user asks you to make changes, analyze the request and respond with a JSON object (and ONLY JSON, no markdown or explanations outside the JSON) in this exact format:
-{
-  "explanation": "Brief explanation of what changes you're making",
-  "changes": [
-    {
-      "filename": "path/to/file.js",
-      "content": "full file content here",
-      "status": "new" or "modified"
-    }
-  ]
-}
-
-Be precise and include the complete file content for each change.`
   }
 
   const handleSendMessage = async () => {
@@ -114,31 +133,12 @@ Be precise and include the complete file content for each change.`
     setMessages(newMessages)
 
     try {
-      const systemPrompt = buildSystemPrompt()
-
-      // Call the AI API endpoint
-      // Replace this with your actual AI provider (OpenAI, Anthropic, etc.)
-      const response = await fetch("/api/workspace/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemPrompt,
-          userMessage,
-          history: newMessages,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to get AI response")
-      }
-
-      const aiResponse = await response.json()
-      const parsedResponse: AIResponse = JSON.parse(aiResponse.content)
+      const result = await generateCodeWithGemini(repoFullName, userMessage)
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
-        content: parsedResponse.explanation,
-        changes: parsedResponse.changes,
+        content: result.explanation,
+        changes: result.changes,
       }
 
       setMessages([...newMessages, assistantMessage])
@@ -151,7 +151,7 @@ Be precise and include the complete file content for each change.`
         role: "system",
         content:
           "Error: " +
-          (error instanceof Error ? error.message : "Failed to send message"),
+          (error instanceof Error ? error.message : "Failed to generate code"),
       }
       setMessages([...newMessages, errorMessage])
     } finally {
@@ -166,20 +166,15 @@ Be precise and include the complete file content for each change.`
     setDeployResult(null)
 
     try {
-      const result = await commitChanges({
-        owner,
-        repo,
-        changes: pendingChanges,
-        commitMessage: `DevStudio: Applied AI-generated changes`,
-      })
+      const result = await deployChanges(repoFullName, pendingChanges)
 
       if (result.success) {
         setDeployResult({
           success: true,
-          message: `Changes deployed successfully! Commit: ${result.commitSha?.substring(0, 7)}`,
+          message: "Changes deployed successfully!",
         })
         setPendingChanges([])
-        await refreshFiles()
+        await loadFileTree()
       } else {
         setDeployResult({
           success: false,
@@ -226,6 +221,28 @@ Be precise and include the complete file content for each change.`
     return languageMap[ext || ""] || "plaintext"
   }
 
+  const renderFileTree = (nodes: FileNode[], depth = 0) => {
+    return nodes.map((node) => (
+      <div key={node.path}>
+        <div
+          className={`flex items-center gap-2 px-2 py-1 hover:bg-muted cursor-pointer rounded ${
+            selectedFile === node.path ? "bg-muted" : ""
+          }`}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          onClick={() => node.type === "file" && handleSelectFile(node.path)}
+        >
+          {node.type === "dir" ? (
+            <Folder className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <File className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="text-sm">{node.name}</span>
+        </div>
+        {node.children && renderFileTree(node.children, depth + 1)}
+      </div>
+    ))
+  }
+
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -246,14 +263,16 @@ Be precise and include the complete file content for each change.`
           <h2 className="text-sm font-semibold">
             {owner}/{repo}
           </h2>
-          <p className="text-xs text-muted-foreground">Branch: {branch}</p>
         </div>
-        <FileTree
-          files={files}
-          selectedFile={selectedFile}
-          onSelectFile={handleSelectFile}
-          isLoading={isLoading}
-        />
+        <ScrollArea className="h-[calc(100%-60px)] p-2">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          ) : (
+            renderFileTree(files)
+          )}
+        </ScrollArea>
       </div>
 
       {/* Right Side - Tabs */}
@@ -283,8 +302,8 @@ Be precise and include the complete file content for each change.`
                       Start Building
                     </h3>
                     <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-                      Tell me what you want to build or modify. I'll analyze
-                      the repository and generate the necessary code changes.
+                      Tell me what you want to build or modify. I&apos;ll analyze
+                      the repository and generate the necessary code changes using Google Gemini.
                     </p>
                   </div>
                 )}
@@ -314,16 +333,10 @@ Be precise and include the complete file content for each change.`
                           <ul className="text-xs space-y-1">
                             {message.changes.map((change, idx) => (
                               <li key={idx} className="flex items-center gap-1">
-                                <span
-                                  className={`inline-block px-1 rounded text-[10px] ${
-                                    change.status === "new"
-                                      ? "bg-green-500/20 text-green-600"
-                                      : "bg-blue-500/20 text-blue-600"
-                                  }`}
-                                >
-                                  {change.status}
+                                <span className="inline-block px-1 rounded text-[10px] bg-blue-500/20 text-blue-600">
+                                  modified
                                 </span>
-                                {change.filename}
+                                {change.path}
                               </li>
                             ))}
                           </ul>
