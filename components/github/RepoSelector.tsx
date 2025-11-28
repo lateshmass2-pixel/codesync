@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Lock, Unlock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface RepoSelectorProps {
 }
 
 export function RepoSelector({ onSelect, disabled }: RepoSelectorProps) {
+  const router = useRouter();
   const [repos, setRepos] = React.useState<RepoOption[]>([]);
   const [selectedRepo, setSelectedRepo] = React.useState<RepoOption | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -66,6 +68,7 @@ export function RepoSelector({ onSelect, disabled }: RepoSelectorProps) {
   const handleSelect = (repo: RepoOption) => {
     setSelectedRepo(repo);
     onSelect?.(repo);
+    router.push(`/workspace?repo=${encodeURIComponent(repo.fullName)}`);
   };
 
   const label = selectedRepo
