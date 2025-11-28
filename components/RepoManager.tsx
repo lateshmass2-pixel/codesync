@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Lock, Unlock, Plus, Github } from "lucide-react"
+import { Loader2, Lock, Unlock, Plus, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Dialog,
   DialogContent,
@@ -15,14 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 interface RepoOption {
   id: number
@@ -46,6 +39,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
   const [error, setError] = React.useState<string | null>(null)
   const [newRepoName, setNewRepoName] = React.useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState("")
 
   React.useEffect(() => {
     let mounted = true
@@ -123,61 +117,105 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
     }
   }
 
+  const filteredRepos = repos.filter((repo) =>
+    repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    repo.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   const label = selectedRepo
     ? `${selectedRepo.fullName}${selectedRepo.private ? " (private)" : ""}`
     : "Select a repository"
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              disabled={disabled || isLoading || !!error}
-              className="flex-1"
+    <div className="space-y-4 flex flex-col">
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search repositories..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
             >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {!isLoading && selectedRepo?.private && (
-                <Lock className="mr-2 h-4 w-4" aria-hidden />
-              )}
-              {!isLoading && selectedRepo && !selectedRepo.private && (
-                <Unlock className="mr-2 h-4 w-4" aria-hidden />
-              )}
-              {label}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-80">
-            <DropdownMenuLabel>Your repositories</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {repos.length === 0 && !isLoading && (
-              <DropdownMenuItem disabled>No repositories found</DropdownMenuItem>
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-medium">
+            {selectedRepo ? (
+              <div className="flex items-center gap-2">
+                {selectedRepo.private ? (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Unlock className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span>{label}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">No repository selected</span>
             )}
-            {repos.map((repo) => (
-              <DropdownMenuItem key={repo.id} onSelect={() => handleSelect(repo)}>
+          </div>
+        </div>
+      </div>
+
+      <ScrollArea className="h-[400px] border rounded-md p-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : repos.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">No repositories found</p>
+          </div>
+        ) : filteredRepos.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">No repositories match "{searchQuery}"</p>
+          </div>
+        ) : (
+          <div className="space-y-2 pr-4">
+            {filteredRepos.map((repo) => (
+              <button
+                key={repo.id}
+                onClick={() => handleSelect(repo)}
+                disabled={disabled || isLoading}
+                className={`w-full text-left p-3 rounded-md border transition-colors ${
+                  selectedRepo?.id === repo.id
+                    ? "border-primary bg-primary/5"
+                    : "border-transparent hover:bg-muted"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 <div className="flex items-center gap-2">
                   {repo.private ? (
-                    <Lock className="h-4 w-4 text-muted-foreground" />
+                    <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   ) : (
-                    <Unlock className="h-4 w-4 text-muted-foreground" />
+                    <Unlock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   )}
-                  <div>
-                    <p className="text-sm font-medium">{repo.fullName}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{repo.fullName}</p>
                     <p className="text-xs text-muted-foreground">
                       {repo.private ? "Private" : "Public"}
                     </p>
                   </div>
                 </div>
-              </DropdownMenuItem>
+              </button>
             ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </div>
+        )}
+      </ScrollArea>
 
+      <div className="flex gap-2 pt-2">
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" disabled={disabled || isLoading}>
+            <Button variant="outline" disabled={disabled || isLoading} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
-              New
+              Create New Repository
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -221,7 +259,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
         </Dialog>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
     </div>
   )
 }
