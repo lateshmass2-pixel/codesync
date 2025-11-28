@@ -34,3 +34,42 @@ export async function GET() {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function POST(request: Request) {
+  const session = await auth();
+
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { name } = await request.json();
+
+    if (!name || typeof name !== "string") {
+      return NextResponse.json({ error: "Repository name is required" }, { status: 400 });
+    }
+
+    const octokit = new Octokit({ auth: session.accessToken });
+    const { data } = await octokit.repos.createForAuthenticatedUser({
+      name,
+      auto_init: true,
+      private: false,
+    });
+
+    const repo = {
+      id: data.id,
+      name: data.name,
+      fullName: data.full_name,
+      private: data.private,
+      description: data.description,
+      htmlUrl: data.html_url,
+      updatedAt: data.updated_at,
+    };
+
+    return NextResponse.json({ repo });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to create repository";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

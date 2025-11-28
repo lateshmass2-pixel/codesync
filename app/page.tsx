@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { ConnectGithubBtn } from "@/components/github/ConnectGithubBtn";
-import { RepoSelector } from "@/components/github/RepoSelector";
+import { RepoManager } from "@/components/RepoManager";
 
 export default async function HomePage() {
   const session = await auth();
@@ -51,12 +51,12 @@ export default async function HomePage() {
             </p>
             <p className="text-lg font-semibold">
               {isConnected
-                ? "Select the repo DevStudio should deploy to"
+                ? "Select an existing repository or create a new one"
                 : "Connect GitHub to load your repositories"}
             </p>
           </div>
           {isConnected ? (
-            <RepoSelector />
+            <RepoManager />
           ) : (
             <p className="text-sm text-muted-foreground">
               Once your GitHub account is connected with repo scope, your repositories will appear here.

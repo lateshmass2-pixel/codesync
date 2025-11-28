@@ -1,227 +1,283 @@
 "use server"
 
 import { Octokit } from "@octokit/rest"
-
 import { auth } from "@/auth"
-import type {
-  CommitChangesParams,
-  CommitChangesResult,
-  FetchRepoTreeParams,
-  FetchRepoTreeResult,
-  FetchFileContentParams,
-  FetchFileContentResult,
-} from "@/lib/workspace/types"
+import { generateCode } from "@/lib/gemini"
 
-const DEFAULT_BRANCH = "main"
+interface FileNode {
+  name: string
+  path: string
+  type: "file" | "dir"
+  size?: number
+  children?: FileNode[]
+}
 
-/**
- * Fetch the file tree structure from a GitHub repository
- */
-export async function fetchRepoTree(
-  params: FetchRepoTreeParams
-): Promise<FetchRepoTreeResult> {
+interface CodeGenerationResult {
+  explanation: string
+  changes: Array<{
+    path: string
+    content: string
+  }>
+}
+
+export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
   const session = await auth()
 
   if (!session?.accessToken) {
-    return {
-      success: false,
-      error: "You must be authenticated to fetch repository files.",
-    }
+    throw new Error("Unauthorized")
   }
 
   try {
     const octokit = new Octokit({ auth: session.accessToken })
-    const { owner, repo, branch = DEFAULT_BRANCH } = params
+    const [owner, repo] = repoFullName.split("/")
 
-    // Get the reference to get the commit SHA
-    const { data: ref } = await octokit.git.getRef({
+    const { data } = await octokit.git.getTree({
       owner,
       repo,
-      ref: `heads/${branch}`,
+      tree_sha: "HEAD",
+      recursive: "true" as any,
     })
 
-    const commitSha = ref.object.sha
+    // Build file tree structure
+    const tree: FileNode[] = []
+    const dirMap = new Map<string, FileNode>()
 
-    // Get the tree recursively
-    const { data: tree } = await octokit.git.getTree({
-      owner,
-      repo,
-      tree_sha: commitSha,
-      recursive: "1",
+    data.tree.forEach((item) => {
+      const parts = item.path.split("/")
+      let currentLevel = tree
+      let currentPath = ""
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]
+        currentPath = currentPath ? `${currentPath}/${part}` : part
+
+        if (i === parts.length - 1) {
+          // This is the final item (file or directory)
+          const node: FileNode = {
+            name: part,
+            path: item.path,
+            type: item.type === "blob" ? "file" : "dir",
+            size: item.size,
+          }
+
+          if (i === 0) {
+            currentLevel.push(node)
+          } else {
+            const parentPath = parts.slice(0, i).join("/")
+            const parentNode = dirMap.get(parentPath)
+            if (parentNode) {
+              if (!parentNode.children) {
+                parentNode.children = []
+              }
+              parentNode.children.push(node)
+            }
+          }
+
+          if (item.type === "tree") {
+            dirMap.set(item.path, node)
+          }
+        } else {
+          // This is a directory path
+          let existingNode = dirMap.get(currentPath)
+          if (!existingNode) {
+            existingNode = {
+              name: part,
+              path: currentPath,
+              type: "dir",
+              children: [],
+            }
+            dirMap.set(currentPath, existingNode)
+
+            if (i === 0) {
+              currentLevel.push(existingNode)
+            } else {
+              const parentPath = parts.slice(0, i).join("/")
+              const parentNode = dirMap.get(parentPath)
+              if (parentNode) {
+                if (!parentNode.children) {
+                  parentNode.children = []
+                }
+                parentNode.children.push(existingNode)
+              }
+            }
+          }
+          currentLevel = existingNode.children || []
+        }
+      }
     })
 
-    // Filter to only include blobs (files)
-    const files = tree.tree.filter((item) => item.type === "blob")
-
-    return {
-      success: true,
-      tree: files,
-    }
+    return tree
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch repository file tree."
-
-    return {
-      success: false,
-      error: message,
-    }
+    console.error("Error fetching file tree:", error)
+    throw new Error("Failed to fetch file tree")
   }
 }
 
-/**
- * Fetch the content of a specific file from a GitHub repository
- */
-export async function fetchFileContent(
-  params: FetchFileContentParams
-): Promise<FetchFileContentResult> {
+export async function getFileContent(repoFullName: string, path: string): Promise<string> {
   const session = await auth()
 
   if (!session?.accessToken) {
-    return {
-      success: false,
-      error: "You must be authenticated to fetch file content.",
-    }
+    throw new Error("Unauthorized")
   }
 
   try {
     const octokit = new Octokit({ auth: session.accessToken })
-    const { owner, repo, path, branch = DEFAULT_BRANCH } = params
+    const [owner, repo] = repoFullName.split("/")
 
     const { data } = await octokit.repos.getContent({
       owner,
       repo,
       path,
-      ref: branch,
     })
 
-    // Handle file content (not directory)
     if ("content" in data && data.type === "file") {
-      // Content is base64 encoded
-      const content = Buffer.from(data.content, "base64").toString("utf-8")
-      return {
-        success: true,
-        content,
-      }
+      return Buffer.from(data.content, "base64").toString("utf-8")
     }
 
-    return {
-      success: false,
-      error: "The specified path is not a file.",
-    }
+    throw new Error("File not found or is not a file")
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch file content."
-
-    return {
-      success: false,
-      error: message,
-    }
+    console.error("Error fetching file content:", error)
+    throw new Error("Failed to fetch file content")
   }
 }
 
-/**
- * Commit changes to a GitHub repository using the Git Data API
- */
-export async function commitChanges(
-  params: CommitChangesParams
-): Promise<CommitChangesResult> {
+export async function generateCodeWithGemini(
+  repoFullName: string,
+  prompt: string
+): Promise<CodeGenerationResult> {
   const session = await auth()
 
   if (!session?.accessToken) {
-    return {
-      success: false,
-      error: "You must be authenticated to commit changes.",
-    }
+    throw new Error("Unauthorized")
   }
 
-  if (!params.changes.length) {
-    return {
-      success: false,
-      error: "At least one change must be provided.",
+  try {
+    // Get file tree for context
+    const fileTree = await getFileTree(repoFullName)
+    
+    // Build file context string
+    const buildFileContext = (nodes: FileNode[], depth = 0): string => {
+      let context = ""
+      const indent = "  ".repeat(depth)
+      
+      nodes.forEach((node) => {
+        context += `${indent}${node.type === "dir" ? "📁" : "📄"} ${node.name}\n`
+        if (node.children) {
+          context += buildFileContext(node.children, depth + 1)
+        }
+      })
+      
+      return context
     }
+
+    const fileContext = buildFileContext(fileTree)
+    
+    // Generate code using Gemini
+    const result = await generateCode(prompt, fileContext)
+    
+    return result
+  } catch (error) {
+    console.error("Error generating code:", error)
+    throw new Error("Failed to generate code")
+  }
+}
+
+export async function deployChanges(
+  repoFullName: string,
+  changes: Array<{ path: string; content: string }>
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth()
+
+  if (!session?.accessToken) {
+    return { success: false, error: "Unauthorized" }
   }
 
   try {
     const octokit = new Octokit({ auth: session.accessToken })
-    const { owner, repo, changes, commitMessage } = params
-    const branch = DEFAULT_BRANCH
+    const [owner, repo] = repoFullName.split("/")
 
-    // Get the latest commit
-    const { data: ref } = await octokit.git.getRef({
+    // Get current commit SHA
+    const { data: refData } = await octokit.git.getRef({
       owner,
       repo,
-      ref: `heads/${branch}`,
+      ref: "heads/main",
+    }).catch(async () => {
+      // Try default branch if main doesn't exist
+      const { data: repoData } = await octokit.repos.get({ owner, repo })
+      return octokit.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${repoData.default_branch}`,
+      })
     })
-    const latestCommitSha = ref.object.sha
 
-    const { data: latestCommit } = await octokit.git.getCommit({
+    const currentCommitSha = refData.object.sha
+
+    // Get current commit to get tree SHA
+    const { data: currentCommit } = await octokit.git.getCommit({
       owner,
       repo,
-      commit_sha: latestCommitSha,
+      commit_sha: currentCommitSha,
     })
-    const baseTreeSha = latestCommit.tree.sha
 
-    // Create blobs for all changes
+    // Create blobs for all files
     const blobs = await Promise.all(
       changes.map(async (change) => {
         const { data } = await octokit.git.createBlob({
           owner,
           repo,
-          content: change.content,
-          encoding: "utf-8",
+          content: Buffer.from(change.content).toString("base64"),
+          encoding: "base64",
         })
         return {
-          path: change.filename,
+          path: change.path,
           sha: data.sha,
+          mode: "100644" as const,
+          type: "blob" as const,
         }
       })
     )
 
-    // Create a new tree
+    // Create new tree
     const { data: newTree } = await octokit.git.createTree({
       owner,
       repo,
-      base_tree: baseTreeSha,
-      tree: blobs.map((blob) => ({
-        path: blob.path,
-        mode: "100644" as const,
-        type: "blob" as const,
-        sha: blob.sha,
-      })),
+      base_tree: currentCommit.tree.sha,
+      tree: blobs,
     })
 
-    // Create a new commit
+    // Create commit
     const { data: newCommit } = await octokit.git.createCommit({
       owner,
       repo,
-      message: commitMessage,
+      message: "AI-generated changes via DevStudio",
       tree: newTree.sha,
-      parents: [latestCommitSha],
+      parents: [currentCommitSha],
     })
 
-    // Update the branch reference
+    // Update reference
     await octokit.git.updateRef({
       owner,
       repo,
-      ref: `heads/${branch}`,
+      ref: "heads/main",
       sha: newCommit.sha,
-      force: false,
+    }).catch(async () => {
+      // Try default branch if main doesn't exist
+      const { data: repoData } = await octokit.repos.get({ owner, repo })
+      return octokit.git.updateRef({
+        owner,
+        repo,
+        ref: `heads/${repoData.default_branch}`,
+        sha: newCommit.sha,
+      })
     })
 
-    return {
-      success: true,
-      commitSha: newCommit.sha,
-      commitUrl: `https://github.com/${owner}/${repo}/commit/${newCommit.sha}`,
-    }
+    return { success: true }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to commit changes."
-
-    return {
-      success: false,
-      error: message,
+    console.error("Error deploying changes:", error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Failed to deploy changes" 
     }
   }
 }
