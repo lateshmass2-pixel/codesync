@@ -12,6 +12,7 @@ interface GeminiResponse {
   changes: FileChange[]
 }
 
+
 export async function generateCode(prompt: string, fileContext: string): Promise<GeminiResponse> {
   try {
     const model = genAI.getGenerativeModel({
