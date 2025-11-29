@@ -3,7 +3,7 @@
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
-import { generateCode } from "@/lib/huggingface"
+import { generateCode } from "@/lib/gemini"
 
 interface FileNode {
   name: string
