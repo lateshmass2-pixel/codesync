@@ -12,18 +12,28 @@ import {
   GitCommit,
   Folder,
   File,
+  Eye,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { 
   getFileTree, 
   getFileContent, 
   generateCodeWithGemini, 
   deployChanges 
 } from "@/app/actions/workspace"
+import { CodeDiffViewer } from "./CodeDiffViewer"
 
 interface FileNode {
   name: string
@@ -36,7 +46,7 @@ interface FileNode {
 interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
-  changes?: Array<{ path: string; content: string }>
+  changes?: Array<{ path: string; content: string; type?: "create" | "update" }>
 }
 
 interface WorkspaceProps {
@@ -59,12 +69,17 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
 
-  const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content: string }>>([])
+  const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content: string; type?: "create" | "update" }>>([])
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployResult, setDeployResult] = useState<{
     success: boolean
     message: string
   } | null>(null)
+
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [selectedDiffFile, setSelectedDiffFile] = useState<string | null>(null)
+  const [originalFileContent, setOriginalFileContent] = useState<string>("")
+  const [loadingOriginalContent, setLoadingOriginalContent] = useState(false)
 
   const chatEndRef = useRef<HTMLDivElement>(null)
 
@@ -99,6 +114,25 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }, [repoFullName])
 
+  const loadOriginalContent = useCallback(async (path: string, isNewFile: boolean) => {
+    if (isNewFile) {
+      setOriginalFileContent("")
+      return
+    }
+
+    setLoadingOriginalContent(true)
+    
+    try {
+      const content = await getFileContent(repoFullName, path)
+      setOriginalFileContent(content || "")
+    } catch (err) {
+      console.error("Failed to load original content:", err)
+      setOriginalFileContent("")
+    } finally {
+      setLoadingOriginalContent(false)
+    }
+  }, [repoFullName])
+
   // ---------------------------------------------------------
   // 2. THEN CALL IT IN USEEFFECT
   // ---------------------------------------------------------
@@ -112,6 +146,17 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       loadFileContent(selectedFile)
     }
   }, [selectedFile, loadFileContent])
+
+  // Load original content when diff file is selected
+  useEffect(() => {
+    if (selectedDiffFile && isReviewModalOpen) {
+      const change = pendingChanges.find((c) => c.path === selectedDiffFile)
+      if (change) {
+        const isNewFile = change.type === "create"
+        loadOriginalContent(selectedDiffFile, isNewFile)
+      }
+    }
+  }, [selectedDiffFile, isReviewModalOpen, pendingChanges, loadOriginalContent])
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -164,7 +209,23 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }
 
-  const handleDeployChanges = async () => {
+  const handleOpenReviewModal = () => {
+    if (pendingChanges.length === 0) return
+    
+    setIsReviewModalOpen(true)
+    
+    if (pendingChanges.length > 0) {
+      setSelectedDiffFile(pendingChanges[0].path)
+    }
+  }
+
+  const handleCloseReviewModal = () => {
+    setIsReviewModalOpen(false)
+    setSelectedDiffFile(null)
+    setOriginalFileContent("")
+  }
+
+  const handleConfirmAndPush = async () => {
     if (pendingChanges.length === 0) return
 
     setIsDeploying(true)
@@ -179,6 +240,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           message: "Changes deployed successfully!",
         })
         setPendingChanges([])
+        handleCloseReviewModal()
         await loadFileTree()
       } else {
         setDeployResult({
@@ -372,20 +434,16 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                       {pendingChanges.length} file(s) ready to deploy
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Review the changes and click deploy to commit
+                      Review the changes before deploying
                     </p>
                   </div>
                   <Button
-                    onClick={handleDeployChanges}
+                    onClick={handleOpenReviewModal}
                     disabled={isDeploying}
                     className="gap-2"
                   >
-                    {isDeploying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <GitCommit className="h-4 w-4" />
-                    )}
-                    Deploy Changes
+                    <Eye className="h-4 w-4" />
+                    Review Changes
                   </Button>
                 </div>
               </div>
@@ -482,6 +540,109 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Review Changes Modal */}
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Review Changes</DialogTitle>
+            <DialogDescription>
+              Review the AI-generated changes before deploying to GitHub
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 flex gap-4 overflow-hidden">
+            {/* File List Sidebar */}
+            <div className="w-64 border rounded-lg overflow-hidden flex flex-col">
+              <div className="bg-muted px-3 py-2 border-b">
+                <p className="text-sm font-semibold">
+                  Changed Files ({pendingChanges.length})
+                </p>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-2 space-y-1">
+                  {pendingChanges.map((change) => (
+                    <div
+                      key={change.path}
+                      className={`flex items-start gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent transition-colors ${
+                        selectedDiffFile === change.path
+                          ? "bg-accent"
+                          : ""
+                      }`}
+                      onClick={() => setSelectedDiffFile(change.path)}
+                    >
+                      <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm break-all">{change.path}</p>
+                        <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          change.type === "create"
+                            ? "bg-green-500/20 text-green-600"
+                            : "bg-blue-500/20 text-blue-600"
+                        }`}>
+                          {change.type === "create" ? "new" : "modified"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Diff Viewer */}
+            <div className="flex-1 border rounded-lg overflow-hidden flex flex-col">
+              {selectedDiffFile ? (
+                <>
+                  <div className="bg-muted px-4 py-2 border-b">
+                    <p className="text-sm font-medium">{selectedDiffFile}</p>
+                  </div>
+                  <div className="flex-1">
+                    <CodeDiffViewer
+                      originalContent={originalFileContent}
+                      modifiedContent={
+                        pendingChanges.find((c) => c.path === selectedDiffFile)
+                          ?.content || ""
+                      }
+                      language={getLanguageFromFilename(selectedDiffFile)}
+                      isLoading={loadingOriginalContent}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <Code className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Select a file to view the diff
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={handleCloseReviewModal}
+              disabled={isDeploying}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAndPush}
+              disabled={isDeploying}
+              className="gap-2"
+            >
+              {isDeploying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <GitCommit className="h-4 w-4" />
+              )}
+              Confirm & Push
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
