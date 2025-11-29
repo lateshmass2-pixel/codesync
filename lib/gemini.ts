@@ -46,9 +46,10 @@ Always return valid JSON matching this schema:
           content: userPrompt,
         },
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 4096,
+      temperature: 0.1,
+      top_p:0.1,
+      max_tokens: 8000,
+      response_format: { type: "json_object" }
     })
 
     const content = completion.choices[0].message.content
