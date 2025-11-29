@@ -69,6 +69,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
 
+  const [logs, setLogs] = useState<string[]>([])
+
   const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>>([])
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployResult, setDeployResult] = useState<{
@@ -174,6 +176,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setInputMessage("")
     setIsSendingMessage(true)
     setDeployResult(null)
+    setLogs([]) // Clear previous logs
 
     // Add user message to chat
     const newMessages: ChatMessage[] = [
@@ -182,8 +185,21 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     ]
     setMessages(newMessages)
 
+    // Progress Simulation
+    setLogs(prev => [...prev, "🚀 Connecting to Repository..."])
+    
+    setTimeout(() => {
+      setLogs(prev => [...prev, "📖 Reading file contents (index.html, style.css)..."])
+    }, 2000)
+    
+    setTimeout(() => {
+      setLogs(prev => [...prev, "🧠 AI is analyzing logic..."])
+    }, 4000)
+
     try {
       const result = await generateCodeWithGemini(repoFullName, userMessage)
+
+      setLogs(prev => [...prev, "✅ Code generated! Parsing JSON..."])
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
@@ -197,6 +213,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
         setPendingChanges(assistantMessage.changes)
       }
     } catch (error) {
+      setLogs(prev => [...prev, "❌ Error generating code"])
       const errorMessage: ChatMessage = {
         role: "system",
         content:
@@ -370,7 +387,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                     </h3>
                     <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
                       Tell me what you want to build or modify. I&apos;ll analyze
-                      the repository and generate the necessary code changes using Google Gemini.
+                      the repository and generate the necessary code changes using AI with full file context.
                     </p>
                   </div>
                 )}
@@ -436,6 +453,30 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                 <div ref={chatEndRef} />
               </div>
             </ScrollArea>
+
+            {/* Terminal Log Window */}
+            {isSendingMessage && logs.length > 0 && (
+              <div className="border-t bg-black text-green-400 font-mono text-sm">
+                <div className="px-4 py-2 border-b border-green-800">
+                  <span className="text-green-300">🖥️ Terminal Log</span>
+                </div>
+                <ScrollArea className="h-32 p-4">
+                  <div className="space-y-1">
+                    {logs.map((log, index) => (
+                      <div key={index} className="text-green-400">
+                        $ {log}
+                      </div>
+                    ))}
+                    {isSendingMessage && (
+                      <div className="flex items-center gap-2">
+                        <span>$ </span>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
 
             {/* Pending Changes Banner */}
             {pendingChanges.length > 0 && (
