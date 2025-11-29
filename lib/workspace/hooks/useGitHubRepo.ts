@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 
-import { fetchRepoTree, fetchFileContent } from "@/app/actions/workspace"
+import { getFileTree, getFileContent } from "@/app/actions/workspace"
 import type { GitHubFile } from "@/lib/workspace/types"
 
 interface UseGitHubRepoParams {
@@ -19,6 +19,29 @@ interface UseGitHubRepoReturn {
   getFileContent: (path: string) => Promise<string | null>
 }
 
+// Helper function to transform FileNode to GitHubFile
+function transformFileNodeToGitHubFile(nodes: any[]): GitHubFile[] {
+  const result: GitHubFile[] = []
+  
+  function processNode(node: any) {
+    if (node.type === 'file') {
+      result.push({
+        path: node.path,
+        mode: '100644', // Default file mode
+        type: 'blob',
+        sha: '', // Empty since we don't have SHA from FileNode
+        size: node.size || 0,
+        url: '', // Empty since we don't have URL from FileNode
+      })
+    } else if (node.children) {
+      node.children.forEach(processNode)
+    }
+  }
+  
+  nodes.forEach(processNode)
+  return result
+}
+
 export function useGitHubRepo(
   params: UseGitHubRepoParams
 ): UseGitHubRepoReturn {
@@ -31,40 +54,25 @@ export function useGitHubRepo(
     setError(null)
 
     try {
-      const result = await fetchRepoTree({
-        owner: params.owner,
-        repo: params.repo,
-        branch: params.branch,
-      })
+      const repoFullName = `${params.owner}/${params.repo}`
+      const result = await getFileTree(repoFullName)
+      const transformedFiles = transformFileNodeToGitHubFile(result)
 
-      if (result.success && result.tree) {
-        setFiles(result.tree)
-      } else {
-        setError(result.error ?? "Failed to fetch repository files")
-      }
+      setFiles(transformedFiles)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
     }
-  }, [params.owner, params.repo, params.branch])
+  }, [params.owner, params.repo])
 
-  const getFileContent = useCallback(
+  const fetchFileContent = useCallback(
     async (path: string): Promise<string | null> => {
       try {
-        const result = await fetchFileContent({
-          owner: params.owner,
-          repo: params.repo,
-          path,
-          branch: params.branch,
-        })
+        const repoFullName = `${params.owner}/${params.repo}`
+        const result = await getFileContent(repoFullName, path)
 
-        if (result.success && result.content) {
-          return result.content
-        } else {
-          console.error(result.error ?? "Failed to fetch file content")
-          return null
-        }
+        return result
       } catch (err) {
         console.error(
           err instanceof Error ? err.message : "An unknown error occurred"
@@ -72,7 +80,7 @@ export function useGitHubRepo(
         return null
       }
     },
-    [params.owner, params.repo, params.branch]
+    [params.owner, params.repo]
   )
 
   useEffect(() => {
@@ -86,6 +94,6 @@ export function useGitHubRepo(
     isLoading,
     error,
     refreshFiles,
-    getFileContent,
+    getFileContent: fetchFileContent,
   }
 }

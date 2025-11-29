@@ -176,7 +176,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
           </div>
         ) : filteredRepos.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">No repositories match "{searchQuery}"</p>
+            <p className="text-sm text-muted-foreground">No repositories match &quot;{searchQuery}&quot;</p>
           </div>
         ) : (
           <div className="space-y-2 pr-4">
