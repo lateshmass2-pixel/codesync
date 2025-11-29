@@ -46,7 +46,7 @@ interface FileNode {
 interface ChatMessage {
   role: "user" | "assistant" | "system"
   content: string
-  changes?: Array<{ path: string; content: string; type?: "create" | "update" }>
+  changes?: Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>
 }
 
 interface WorkspaceProps {
@@ -69,7 +69,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
 
-  const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content: string; type?: "create" | "update" }>>([])
+  const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>>([])
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployResult, setDeployResult] = useState<{
     success: boolean
@@ -400,8 +400,20 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                           <ul className="text-xs space-y-1">
                             {message.changes.map((change, idx) => (
                               <li key={idx} className="flex items-center gap-1">
-                                <span className="inline-block px-1 rounded text-[10px] bg-blue-500/20 text-blue-600">
-                                  modified
+                                <span
+                                  className={`inline-block px-1 rounded text-[10px] ${
+                                    change.type === "create"
+                                      ? "bg-green-500/20 text-green-600"
+                                      : change.type === "delete"
+                                        ? "bg-red-500/20 text-red-600"
+                                        : "bg-blue-500/20 text-blue-600"
+                                  }`}
+                                >
+                                  {change.type === "create"
+                                    ? "new"
+                                    : change.type === "delete"
+                                      ? "deleted"
+                                      : "modified"}
                                 </span>
                                 {change.path}
                               </li>
@@ -577,9 +589,15 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                         <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                           change.type === "create"
                             ? "bg-green-500/20 text-green-600"
-                            : "bg-blue-500/20 text-blue-600"
+                            : change.type === "delete"
+                              ? "bg-red-500/20 text-red-600"
+                              : "bg-blue-500/20 text-blue-600"
                         }`}>
-                          {change.type === "create" ? "new" : "modified"}
+                          {change.type === "create"
+                            ? "new"
+                            : change.type === "delete"
+                              ? "deleted"
+                              : "modified"}
                         </span>
                       </div>
                     </div>

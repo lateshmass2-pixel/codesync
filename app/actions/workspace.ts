@@ -1,6 +1,7 @@
 "use server"
 
 import { Octokit } from "@octokit/rest"
+import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
 import { generateCode } from "@/lib/gemini"
 
@@ -16,9 +17,12 @@ interface CodeGenerationResult {
   explanation: string
   changes: Array<{
     path: string
-    content: string
+    content?: string
+    type?: "create" | "update" | "delete"
   }>
 }
+
+type GitCreateTreeParameters = RestEndpointMethodTypes["git"]["createTree"]["parameters"]
 
 export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
   const session = await auth()
@@ -184,7 +188,7 @@ export async function generateCodeWithGemini(
 
 export async function deployChanges(
   repoFullName: string,
-  changes: Array<{ path: string; content: string }>
+  changes: Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>
 ): Promise<{ success: boolean; error?: string }> {
   const session = await auth()
 
@@ -220,30 +224,50 @@ export async function deployChanges(
       commit_sha: currentCommitSha,
     })
 
-    // Create blobs for all files
-    const blobs = await Promise.all(
-      changes.map(async (change) => {
-        const { data } = await octokit.git.createBlob({
-          owner,
-          repo,
-          content: Buffer.from(change.content).toString("base64"),
-          encoding: "base64",
-        })
-        return {
+    // Build tree entries for all changes
+    const treeEntries: Array<{
+      path: string
+      sha: string | null
+      mode: "100644"
+      type: "blob"
+    }> = []
+
+    for (const change of changes) {
+      if (change.type === "delete") {
+        treeEntries.push({
           path: change.path,
-          sha: data.sha,
-          mode: "100644" as const,
-          type: "blob" as const,
-        }
+          sha: null,
+          mode: "100644",
+          type: "blob",
+        })
+        continue
+      }
+
+      if (typeof change.content !== "string") {
+        throw new Error(`Missing content for change at ${change.path}`)
+      }
+
+      const { data } = await octokit.git.createBlob({
+        owner,
+        repo,
+        content: Buffer.from(change.content).toString("base64"),
+        encoding: "base64",
       })
-    )
+
+      treeEntries.push({
+        path: change.path,
+        sha: data.sha,
+        mode: "100644",
+        type: "blob",
+      })
+    }
 
     // Create new tree
     const { data: newTree } = await octokit.git.createTree({
       owner,
       repo,
       base_tree: currentCommit.tree.sha,
-      tree: blobs,
+      tree: treeEntries as unknown as GitCreateTreeParameters["tree"],
     })
 
     // Create commit
