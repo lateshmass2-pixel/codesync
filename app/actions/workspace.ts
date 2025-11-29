@@ -235,6 +235,17 @@ export async function generateCodeWithGemini(
   }
 }
 
+/**
+ * Deploy code changes to GitHub using the Git Data API (atomic commits).
+ * Handles three types of operations: create, update, and delete.
+ * 
+ * For creates/updates: Creates blobs with file content and references them in the tree.
+ * For deletes: Adds tree entries with sha: null to remove files from the repository.
+ * 
+ * @param repoFullName - Repository in format "owner/repo"
+ * @param changes - Array of changes with type: "create" | "update" | "delete"
+ * @returns Success/error response
+ */
 export async function deployChanges(
   repoFullName: string,
   changes: Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>
@@ -283,6 +294,8 @@ export async function deployChanges(
 
     for (const change of changes) {
       if (change.type === "delete") {
+        // For deletions: set sha to null to remove file from tree
+        // This is the Git Data API way of deleting files
         treeEntries.push({
           path: change.path,
           sha: null,
@@ -296,6 +309,7 @@ export async function deployChanges(
         throw new Error(`Missing content for change at ${change.path}`)
       }
 
+      // For creates and updates: create a blob and reference it in the tree
       const { data } = await octokit.git.createBlob({
         owner,
         repo,
