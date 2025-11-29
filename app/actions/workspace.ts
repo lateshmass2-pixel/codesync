@@ -3,7 +3,7 @@
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
-import { generateCode } from "@/lib/gemini"
+import { generateCode } from "@/lib/huggingface"
 
 interface FileNode {
   name: string
@@ -47,6 +47,8 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
     const dirMap = new Map<string, FileNode>()
 
     data.tree.forEach((item) => {
+      if (!item.path) return // Skip items without paths
+      
       const parts = item.path.split("/")
       let currentLevel = tree
       let currentPath = ""
