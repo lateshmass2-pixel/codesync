@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Lock, Unlock, Plus, Search, X } from "lucide-react"
+import { Loader2, Lock, Unlock, Plus, Search, X, Code } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -75,7 +75,11 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
   const handleSelect = (repo: RepoOption) => {
     setSelectedRepo(repo)
     onSelect?.(repo)
-    router.push(`/workspace?repo=${encodeURIComponent(repo.fullName)}`)
+  }
+
+  const handleEdit = () => {
+    if (!selectedRepo) return
+    router.push(`/workspace?repo=${encodeURIComponent(selectedRepo.fullName)}`)
   }
 
   const handleCreateRepo = async () => {
@@ -213,7 +217,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
       <div className="flex gap-2 pt-2">
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" disabled={disabled || isLoading} className="w-full">
+            <Button variant="outline" disabled={disabled || isLoading} className="flex-1">
               <Plus className="h-4 w-4 mr-2" />
               Create New Repository
             </Button>
@@ -257,6 +261,16 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Button 
+          onClick={handleEdit}
+          disabled={!selectedRepo || disabled || isLoading}
+          className="flex-1 gap-2"
+          size="lg"
+        >
+          <Code className="h-4 w-4" />
+          Edit Project
+        </Button>
       </div>
 
       {error && <p className="text-sm text-destructive mt-2">{error}</p>}

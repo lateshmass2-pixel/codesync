@@ -340,15 +340,15 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Left Sidebar - File Explorer */}
-      <div className="w-64 border-r bg-card">
-        <div className="border-b p-4">
+    <div className="h-screen flex overflow-hidden bg-background">
+      {/* Left Sidebar - File Explorer (Fixed, Static) */}
+      <div className="w-64 border-r bg-card/50 flex flex-col">
+        <div className="border-b p-4 flex-shrink-0">
           <h2 className="text-sm font-semibold">
             {owner}/{repo}
           </h2>
         </div>
-        <ScrollArea className="h-[calc(100%-60px)] p-2">
+        <div className="flex-1 overflow-y-auto p-2">
           {isLoading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -356,13 +356,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           ) : (
             renderFileTree(files)
           )}
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* Right Side - Tabs */}
-      <div className="flex flex-1 flex-col">
-        <Tabs defaultValue="chat" className="flex h-full flex-col">
-          <div className="border-b px-4">
+      {/* Right Section - Main Content (Scrollable) */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Tabs defaultValue="chat" className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 flex-shrink-0">
             <TabsList>
               <TabsTrigger value="chat" className="gap-2">
                 <MessageSquare className="h-4 w-4" />
@@ -376,8 +376,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </div>
 
           {/* Chat Tab */}
-          <TabsContent value="chat" className="flex-1 flex flex-col m-0 p-0">
-            <ScrollArea className="flex-1 p-4">
+          <TabsContent value="chat" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-4">
                 {messages.length === 0 && (
                   <div className="text-center py-12">
@@ -452,15 +452,15 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
                 <div ref={chatEndRef} />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Terminal Log Window */}
             {isSendingMessage && logs.length > 0 && (
-              <div className="border-t bg-black text-green-400 font-mono text-sm">
+              <div className="border-t bg-black text-green-400 font-mono text-sm flex-shrink-0">
                 <div className="px-4 py-2 border-b border-green-800">
                   <span className="text-green-300">🖥️ Terminal Log</span>
                 </div>
-                <ScrollArea className="h-32 p-4">
+                <div className="h-32 overflow-y-auto p-4">
                   <div className="space-y-1">
                     {logs.map((log, index) => (
                       <div key={index} className="text-green-400">
@@ -474,13 +474,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                       </div>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             )}
 
             {/* Pending Changes Banner */}
             {pendingChanges.length > 0 && (
-              <div className="border-t bg-accent/50 p-4">
+              <div className="border-t bg-accent/50 p-4 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold">
@@ -505,7 +505,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             {/* Deploy Result */}
             {deployResult && (
               <div
-                className={`border-t p-4 ${
+                className={`border-t p-4 flex-shrink-0 ${
                   deployResult.success
                     ? "bg-green-500/10 text-green-600"
                     : "bg-destructive/10 text-destructive"
@@ -523,7 +523,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             )}
 
             {/* Chat Input */}
-            <div className="border-t p-4">
+            <div className="border-t p-4 flex-shrink-0">
               <div className="flex gap-2">
                 <Input
                   value={inputMessage}
@@ -554,13 +554,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </TabsContent>
 
           {/* Code Preview Tab */}
-          <TabsContent value="code" className="flex-1 m-0 p-0">
+          <TabsContent value="code" className="flex-1 m-0 p-0 overflow-hidden flex flex-col">
             {selectedFile && !loadingFile ? (
-              <div className="h-full flex flex-col">
-                <div className="border-b bg-muted px-4 py-2">
+              <>
+                <div className="border-b bg-muted px-4 py-2 flex-shrink-0">
                   <p className="text-sm font-medium">{selectedFile}</p>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 overflow-hidden">
                   <Editor
                     height="100%"
                     language={getLanguageFromFilename(selectedFile)}
@@ -575,7 +575,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                     }}
                   />
                 </div>
-              </div>
+              </>
             ) : loadingFile ? (
               <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
