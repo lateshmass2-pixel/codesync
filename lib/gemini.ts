@@ -35,7 +35,7 @@ Always return valid JSON matching this schema:
 }`
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-70b-versatile",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
