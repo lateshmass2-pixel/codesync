@@ -6,8 +6,8 @@ const groq = new Groq({
 
 interface FileChange {
   path: string
-  content: string
-  type?: "create" | "update"
+  content?: string
+  type?: "create" | "update" | "delete"
 }
 
 interface GeminiResponse {
@@ -15,31 +15,46 @@ interface GeminiResponse {
   changes: FileChange[]
 }
 
+interface GroqResponse {
+  thought_process: string
+  changes: FileChange[]
+}
+
 export async function generateCode(userPrompt: string, fileContext: string): Promise<GeminiResponse> {
   try {
-    const systemMessage = `You are an expert coding agent. You will be given a file structure and a user request. Return a JSON object with an explanation string and a changes array containing { path, content, type } where type is either "create" or "update".
+    const systemPrompt = `
+  You are an expert Senior Software Engineer specializing in Next.js, React, and TypeScript.
+  
+  YOUR GOAL:
+  You must analyze the user request and the provided file context to generate precise code changes.
+  
+  CRITICAL RULES:
+  1.  **Thinking Phase:** Before writing code, you must internally analyze the dependency chain. If you change a component, check if it breaks the parent page.
+  2.  **No Placeholders:** Never use comments like "// ... rest of code". Write the FULL file content every time.
+  3.  **Strict JSON:** You must return a valid JSON object.
+  
+  FILE CONTEXT:
+  ${fileContext}
 
-File Structure:
-${fileContext}
-
-Always return valid JSON matching this schema:
-{
-  "explanation": "string describing the changes",
-  "changes": [
-    {
-      "path": "file path",
-      "content": "file content",
-      "type": "create|update"
-    }
-  ]
-}`
+  RETURN FORMAT (JSON):
+  {
+    "thought_process": "Briefly explain your reasoning here (e.g., 'I need to update imports in App.tsx because I moved the component...')",
+    "changes": [
+      {
+        "path": "src/components/Example.tsx",
+        "content": "export default function Example() { ... }",
+        "type": "create" | "update" | "delete"
+      }
+    ]
+  }
+`.trim()
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
-          content: systemMessage,
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -57,8 +72,20 @@ Always return valid JSON matching this schema:
     }
 
     try {
-      const parsed = JSON.parse(content) as GeminiResponse
-      return parsed
+      const parsed = JSON.parse(content) as GroqResponse
+
+      if (!parsed.thought_process) {
+        throw new Error("Missing thought_process in Groq response")
+      }
+
+      if (!Array.isArray(parsed.changes)) {
+        throw new Error("Missing changes array in Groq response")
+      }
+
+      return {
+        explanation: parsed.thought_process,
+        changes: parsed.changes,
+      }
     } catch (parseError) {
       console.error("Failed to parse Groq response as JSON:", content)
       throw new Error("Invalid response format from Groq")
