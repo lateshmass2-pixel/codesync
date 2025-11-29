@@ -1,10 +1,13 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { Groq } from "groq-sdk"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 interface FileChange {
   path: string
   content: string
+  type?: "create" | "update"
 }
 
 interface GeminiResponse {
@@ -12,32 +15,56 @@ interface GeminiResponse {
   changes: FileChange[]
 }
 
-
-export async function generateCode(prompt: string, fileContext: string): Promise<GeminiResponse> {
+export async function generateCode(userPrompt: string, fileContext: string): Promise<GeminiResponse> {
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
-      systemInstruction: "You are an expert coding agent. You will be given a file structure and a user request. Return a JSON object with an explanation string and a changes array containing { path, content }.",
+    const systemMessage = `You are an expert coding agent. You will be given a file structure and a user request. Return a JSON object with an explanation string and a changes array containing { path, content, type } where type is either "create" or "update".
+
+File Structure:
+${fileContext}
+
+Always return valid JSON matching this schema:
+{
+  "explanation": "string describing the changes",
+  "changes": [
+    {
+      "path": "file path",
+      "content": "file content",
+      "type": "create|update"
+    }
+  ]
+}`
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: systemMessage,
+        },
+        {
+          role: "user",
+          content: userPrompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 4096,
     })
 
-    const fullPrompt = `File Structure:\n${fileContext}\n\nUser Request:\n${prompt}`
+    const content = completion.choices[0].message.content
+    if (!content) {
+      throw new Error("No content in response")
+    }
 
-    const result = await model.generateContent(fullPrompt)
-    const response = await result.response
-    const text = response.text()
-    
     try {
-      const parsed = JSON.parse(text) as GeminiResponse
+      const parsed = JSON.parse(content) as GeminiResponse
       return parsed
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON:", text)
-      throw new Error("Invalid response format from Gemini")
+      console.error("Failed to parse Groq response as JSON:", content)
+      throw new Error("Invalid response format from Groq")
     }
   } catch (error) {
-    console.error("Gemini API error:", error)
-    throw new Error("Failed to generate code with Gemini")
+    console.error("Groq API error:", error)
+    throw new Error("Failed to generate code with Groq")
   }
 }
