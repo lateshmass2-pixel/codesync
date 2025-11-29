@@ -158,28 +158,75 @@ export async function generateCodeWithGemini(
   }
 
   try {
+    const octokit = new Octokit({ auth: session.accessToken })
+    const [owner, repo] = repoFullName.split("/")
+
     // Get file tree for context
     const fileTree = await getFileTree(repoFullName)
     
-    // Build file context string
-    const buildFileContext = (nodes: FileNode[], depth = 0): string => {
+    // Collect key files with content
+    const keyFileExtensions = [".html", ".css", ".js", ".jsx", ".tsx", ".ts"]
+    const allFiles: string[] = []
+    
+    const collectFiles = (nodes: FileNode[]) => {
+      nodes.forEach((node) => {
+        if (node.type === "file") {
+          const ext = node.path.split('.').pop()?.toLowerCase()
+          if (ext && keyFileExtensions.some(keyExt => node.path.endsWith(keyExt))) {
+            allFiles.push(node.path)
+          }
+        }
+        if (node.children) {
+          collectFiles(node.children)
+        }
+      })
+    }
+    
+    collectFiles(fileTree)
+    
+    // Build file context with content
+    let fileContextWithContent = ""
+    
+    for (const filePath of allFiles) {
+      try {
+        const { data } = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: filePath,
+        })
+
+        if ("content" in data && data.type === "file") {
+          const content = Buffer.from(data.content, "base64").toString("utf-8")
+          fileContextWithContent += `Filename: ${filePath}\nCode:\n${content}\n---\n`
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch content for ${filePath}:`, error)
+        // Continue with other files if one fails
+      }
+    }
+    
+    // Also add file tree structure for additional context
+    const buildFileTreeContext = (nodes: FileNode[], depth = 0): string => {
       let context = ""
       const indent = "  ".repeat(depth)
       
       nodes.forEach((node) => {
         context += `${indent}${node.type === "dir" ? "📁" : "📄"} ${node.name}\n`
         if (node.children) {
-          context += buildFileContext(node.children, depth + 1)
+          context += buildFileTreeContext(node.children, depth + 1)
         }
       })
       
       return context
     }
 
-    const fileContext = buildFileContext(fileTree)
+    const fileTreeContext = buildFileTreeContext(fileTree)
     
-    // Generate code using Gemini
-    const result = await generateCode(prompt, fileContext)
+    // Combine both contexts
+    const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
+    
+    // Generate code using Hugging Face
+    const result = await generateCode(prompt, fullContext)
     
     return result
   } catch (error) {
