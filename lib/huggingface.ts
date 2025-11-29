@@ -1,102 +1,86 @@
-import { HfInference } from "@huggingface/inference"
+import { HfInference } from "@huggingface/inference";
+import { jsonrepair } from "jsonrepair"; // <--- Import the fixer
 
-const hf = new HfInference(process.env.HUGGINGFACE_API_KEY)
-
-interface FileChange {
-  path: string
-  content?: string
-  type?: "create" | "update" | "delete"
-}
-
-interface HuggingFaceResponse {
-  explanation: string
-  changes: FileChange[]
-}
-
-export async function generateCode(userPrompt: string, fileContext: string): Promise<HuggingFaceResponse> {
+export async function generateCode(userPrompt: string, fileContext: string) {
   try {
-    const systemPrompt = `
-You are an expert Senior Software Engineer specializing in Next.js, React, and TypeScript.
-
-YOUR GOAL:
-You must analyze the user request and the provided file context to generate precise code changes.
-
-CRITICAL RULES:
-1. **Thinking Phase:** Before writing code, you must internally analyze the dependency chain. If you change a component, check if it breaks the parent page.
-2. **No Placeholders:** Never use comments like "// ... rest of code". Write the FULL file content every time.
-3. **Strict JSON:** You must return a valid JSON object.
-
-FILE CONTEXT:
-${fileContext}
-
-RETURN FORMAT (JSON):
-{
-  "explanation": "Briefly explain your reasoning here (e.g., 'I need to update imports in App.tsx because I moved the component...')",
-  "changes": [
-    {
-      "path": "src/components/Example.tsx",
-      "content": "export default function Example() { ... }",
-      "type": "create" | "update" | "delete"
-    }
-  ]
-}
-`.trim()
-
-    const completion = await hf.chatCompletion({
-      model: "Qwen/Qwen2.5-Coder-32B-Instruct",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: userPrompt,
-        },
-      ],
-      temperature: 0.2,
-      max_tokens: 8192,
-      top_p: 0.95,
-    })
-
-    const content = completion.choices[0].message.content
-    if (!content) {
-      throw new Error("No content in response")
+    if (!process.env.HUGGINGFACE_API_KEY) {
+      throw new Error("Missing HUGGINGFACE_API_KEY in .env.local");
     }
 
-    // Clean the output by stripping markdown JSON blocks and trimming whitespace
-    let cleanedContent = content.trim()
+    const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
     
-    // Remove ```json and ``` tags if present
-    if (cleanedContent.startsWith('```json')) {
-      cleanedContent = cleanedContent.substring(7).trim()
-    }
-    if (cleanedContent.endsWith('```')) {
-      cleanedContent = cleanedContent.substring(0, cleanedContent.length - 3).trim()
-    }
+    // We stick with 7B because it's faster and less likely to timeout
+    const model = "Qwen/Qwen2.5-Coder-7B-Instruct"; 
 
+    console.log(`🤖 Asking ${model}...`);
+
+    const systemPrompt = `
+      You are an expert Coding Agent.
+      
+      FILE CONTEXT:
+      ${fileContext}
+
+      INSTRUCTION:
+      ${userPrompt}
+
+      OUTPUT RULES:
+      1. Return a JSON object.
+      2. No Markdown blocks.
+      3. Format:
+      {
+        "explanation": "Brief summary",
+        "changes": [
+          {
+            "path": "path/to/file.ext",
+            "content": "Code content here",
+            "type": "create" | "update"
+          }
+        ]
+      }
+    `;
+
+    const response = await hf.chatCompletion({
+      model: model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.1, 
+      max_tokens: 8000,
+      top_p: 0.9
+    });
+
+    let content = response.choices[0].message.content || "";
+
+    console.log("📝 Raw AI Output (Pre-fix):", content.substring(0, 100) + "...");
+
+    // ---------------------------------------------------------
+    // THE FIX: Use jsonrepair
+    // ---------------------------------------------------------
+    
+    // 1. Strip Markdown (Common issue)
+    content = content.replace(/```json/g, "").replace(/```/g, "");
+
+    // 2. Find the object boundaries
+    const firstBrace = content.indexOf("{");
+    const lastBrace = content.lastIndexOf("}");
+    
+    if (firstBrace === -1) throw new Error("No JSON found in response");
+    
+    const potentialJson = content.substring(firstBrace, lastBrace + 1);
+
+    // 3. Auto-Repair and Parse
     try {
-      const parsed = JSON.parse(cleanedContent) as HuggingFaceResponse
-
-      if (!parsed.explanation) {
-        throw new Error("Missing explanation in Hugging Face response")
-      }
-
-      if (!Array.isArray(parsed.changes)) {
-        throw new Error("Missing changes array in Hugging Face response")
-      }
-
-      return {
-        explanation: parsed.explanation,
-        changes: parsed.changes,
-      }
+      // jsonrepair will fix unescaped quotes, bad backslashes, trailing commas, etc.
+      const fixedJson = jsonrepair(potentialJson);
+      return JSON.parse(fixedJson);
     } catch (parseError) {
-      console.error("Failed to parse Hugging Face response as JSON:", cleanedContent)
-      console.error("Original content:", content)
-      throw new Error("Invalid response format from Hugging Face")
+      console.error("JSON Repair Failed on:", potentialJson.substring(0, 200));
+      throw new Error("AI generated unfixable JSON. Please try again.");
     }
+
   } catch (error) {
-    console.error("Hugging Face API error:", error)
-    throw new Error("Failed to generate code with Hugging Face")
+    console.error("Hugging Face Error:", error);
+    throw error;
   }
 }
