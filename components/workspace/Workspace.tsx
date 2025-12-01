@@ -376,11 +376,14 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               </TabsList>
             </div>
 
-            {/* Chat Tab */}
-            <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
+            {/* Chat Tab - Generous padding for comfortable conversation reading */}
+            <TabsContent
+              value="chat"
+              className="flex-1 flex flex-col overflow-hidden min-h-0 px-8 py-6 space-y-4"
+            >
               {/* Messages Container - flex-1 to take all available space */}
-              <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col">
-                <div className="space-y-4 h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto rounded-2xl border bg-card/50 px-6 py-5 min-h-0 flex flex-col">
+                <div className="space-y-6 h-full flex flex-col">
                   {messages.length === 0 && (
                     <div className="h-full flex items-center justify-center">
                       <div className="text-center">
@@ -464,7 +467,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
               {/* Terminal Log Window - flex-shrink-0 to maintain fixed height */}
               {isSendingMessage && logs.length > 0 && (
-                <div className="border-t bg-black text-green-400 font-mono text-sm flex-shrink-0">
+                <div className="border rounded-2xl bg-black text-green-400 font-mono text-sm flex-shrink-0 overflow-hidden">
                   <div className="px-4 py-2 border-b border-green-800">
                     <span className="text-green-300">🖥️ Terminal Log</span>
                   </div>
@@ -488,7 +491,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
               {/* Pending Changes Banner - flex-shrink-0 */}
               {pendingChanges.length > 0 && (
-                <div className="border-t bg-accent/50 p-4 flex-shrink-0">
+                <div className="border rounded-2xl bg-accent/50 p-4 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold">
@@ -513,7 +516,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               {/* Deploy Result - flex-shrink-0 */}
               {deployResult && (
                 <div
-                  className={`border-t p-4 flex-shrink-0 ${
+                  className={`border rounded-2xl p-4 flex-shrink-0 ${
                     deployResult.success
                       ? "bg-green-500/10 text-green-600"
                       : "bg-destructive/10 text-destructive"
@@ -531,7 +534,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               )}
 
               {/* Chat Input - Robust multi-line textarea with absolute button positioning */}
-              <div className="border-t p-4 flex-shrink-0">
+              <div className="border rounded-2xl p-4 flex-shrink-0">
                 <div className="relative">
                   <textarea
                     value={inputMessage}
@@ -562,12 +565,17 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               </div>
             </TabsContent>
 
-            {/* Code Preview Tab - Full height with flex-1 and proper top alignment */}
-            <TabsContent value="code" className="flex-1 h-full flex flex-col overflow-hidden min-h-0 p-0 justify-start">
+            {/* Code Preview Tab - Compact spacing for code editor with minimal padding */}
+            <TabsContent
+              value="code"
+              className="flex-1 h-full flex flex-col overflow-hidden min-h-0 px-4 py-4"
+            >
               {selectedFile && !loadingFile ? (
-                <>
-                  <div className="border-b bg-muted px-4 py-2 flex-shrink-0">
-                    <p className="text-sm font-medium">{selectedFile}</p>
+                <div className="flex-1 flex flex-col overflow-hidden border rounded-2xl bg-card min-h-0">
+                  <div className="border-b border-border/70 bg-muted px-3 py-2 flex-shrink-0">
+                    <p className="text-xs font-mono font-medium text-muted-foreground truncate">
+                      {selectedFile}
+                    </p>
                   </div>
                   <div className="flex-1 overflow-hidden min-h-0">
                     <Editor
@@ -582,10 +590,11 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                         fontSize: 14,
                         lineNumbers: "on",
                         scrollBeyondLastLine: false,
+                        padding: { top: 12, bottom: 12 },
                       }}
                     />
                   </div>
-                </>
+                </div>
               ) : loadingFile ? (
                 <div className="flex-1 flex items-center justify-center min-h-0">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -607,7 +616,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
       {/* Review Changes Modal */}
       <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-6">
           <DialogHeader>
             <DialogTitle>Review Changes</DialogTitle>
             <DialogDescription>
@@ -615,7 +624,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex gap-4 overflow-hidden">
+          <div className="flex-1 flex gap-6 overflow-hidden">
             {/* File List Sidebar */}
             <div className="w-64 border rounded-lg overflow-hidden flex flex-col">
               <div className="bg-muted px-3 py-2 border-b">
