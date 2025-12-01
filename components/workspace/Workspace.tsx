@@ -360,257 +360,269 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </div>
         </div>
 
-        {/* Right Section - Main Content (Flexbox chain for full height) */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          <Tabs defaultValue="chat" className="flex flex-col flex-1 overflow-hidden min-h-0">
-            <div className="border-b px-4 flex-shrink-0">
-              <TabsList>
-                <TabsTrigger value="chat" className="gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger value="code" className="gap-2">
-                  <Code className="h-4 w-4" />
-                  Code Preview
-                </TabsTrigger>
-              </TabsList>
+        {/* Main Content Area - Split Panel Layout (Chat | Code) */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          
+          {/* LEFT PANEL - Chat Assistant (Messaging App Aesthetic) */}
+          <div className="w-[40%] flex flex-col h-full border-r border-white/10 bg-zinc-900 overflow-hidden min-h-0">
+            {/* Chat Header */}
+            <div className="flex-shrink-0 border-b border-white/10 bg-zinc-800 px-6 py-4">
+              <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-blue-400" />
+                AI Assistant
+              </h3>
             </div>
 
-            {/* Chat Tab - Generous padding for comfortable conversation reading */}
-            <TabsContent
-              value="chat"
-              className="flex-1 flex flex-col overflow-hidden min-h-0 px-10 py-8 space-y-6"
-            >
-              {/* Messages Container - flex-1 to take all available space */}
-              <div className="flex-1 overflow-y-auto rounded-2xl border bg-card/50 px-8 py-6 min-h-0 flex flex-col">
-                <div className="space-y-8 h-full flex flex-col">
-                  {messages.length === 0 && (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-lg font-semibold">
-                          Start Building
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-                          Tell me what you want to build or modify. I&apos;ll analyze
-                          the repository and generate the necessary code changes using AI with full file context.
+            {/* Messages Container - Generous padding for comfortable conversation reading */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 flex flex-col min-h-0">
+              {messages.length === 0 && (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <MessageSquare className="mx-auto h-12 w-12 text-zinc-500" />
+                    <h3 className="mt-4 text-base font-semibold text-zinc-200">
+                      Start Building
+                    </h3>
+                    <p className="mt-2 text-sm text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                      Describe what you want to build or modify. I&apos;ll analyze the repository and generate code changes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {messages.length > 0 && (
+                <>
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-lg px-4 py-3 ${
+                          message.role === "user"
+                            ? "bg-blue-600 text-white"
+                            : message.role === "system"
+                              ? "bg-red-900/30 text-red-300 border border-red-800/50"
+                              : "bg-zinc-700 text-zinc-100"
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                          {message.content}
                         </p>
+                        {message.changes && message.changes.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/20">
+                            <p className="text-xs font-semibold mb-2 opacity-90">
+                              Changes ({message.changes.length} files):
+                            </p>
+                            <ul className="text-xs space-y-1">
+                              {message.changes.map((change, idx) => (
+                                <li key={idx} className="flex items-center gap-2">
+                                  <span
+                                    className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      change.type === "create"
+                                        ? "bg-green-500/30 text-green-300"
+                                        : change.type === "delete"
+                                          ? "bg-red-500/30 text-red-300"
+                                          : "bg-blue-500/30 text-blue-300"
+                                    }`}
+                                  >
+                                    {change.type === "create"
+                                      ? "new"
+                                      : change.type === "delete"
+                                        ? "deleted"
+                                        : "modified"}
+                                  </span>
+                                  <span className="text-zinc-300">{change.path}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {isSendingMessage && (
+                    <div className="flex justify-start">
+                      <div className="bg-zinc-700 text-zinc-100 rounded-lg px-4 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     </div>
                   )}
 
-                  {messages.length > 0 && (
-                    <>
-                      {messages.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : message.role === "system"
-                                  ? "bg-destructive/10 text-destructive"
-                                  : "bg-muted"
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">
-                              {message.content}
-                            </p>
-                            {message.changes && message.changes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-border/50">
-                                <p className="text-xs font-semibold mb-1">
-                                  Changes ({message.changes.length} files):
-                                </p>
-                                <ul className="text-xs space-y-1">
-                                  {message.changes.map((change, idx) => (
-                                    <li key={idx} className="flex items-center gap-1">
-                                      <span
-                                        className={`inline-block px-1 rounded text-[10px] ${
-                                          change.type === "create"
-                                            ? "bg-green-500/20 text-green-600"
-                                            : change.type === "delete"
-                                              ? "bg-red-500/20 text-red-600"
-                                              : "bg-blue-500/20 text-blue-600"
-                                        }`}
-                                      >
-                                        {change.type === "create"
-                                          ? "new"
-                                          : change.type === "delete"
-                                            ? "deleted"
-                                            : "modified"}
-                                      </span>
-                                      {change.path}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                  <div ref={chatEndRef} />
+                </>
+              )}
+            </div>
 
-                      {isSendingMessage && (
-                        <div className="flex justify-start">
-                          <div className="rounded-lg bg-muted px-4 py-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          </div>
-                        </div>
-                      )}
-
-                      <div ref={chatEndRef} />
-                    </>
+            {/* Terminal Log Window - flex-shrink-0 to maintain fixed height */}
+            {isSendingMessage && logs.length > 0 && (
+              <div className="flex-shrink-0 border-t border-white/10 bg-black text-green-400 font-mono text-xs overflow-hidden">
+                <div className="px-4 py-2 border-b border-green-800 bg-black/50">
+                  <span className="text-green-300 text-xs">🖥️ Terminal</span>
+                </div>
+                <div className="h-28 overflow-y-auto p-3 space-y-1">
+                  {logs.map((log, index) => (
+                    <div key={index} className="text-green-400">
+                      $ {log}
+                    </div>
+                  ))}
+                  {isSendingMessage && (
+                    <div className="flex items-center gap-1">
+                      <span>$ </span>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    </div>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Terminal Log Window - flex-shrink-0 to maintain fixed height */}
-              {isSendingMessage && logs.length > 0 && (
-                <div className="border rounded-2xl bg-black text-green-400 font-mono text-sm flex-shrink-0 overflow-hidden">
-                  <div className="px-4 py-2 border-b border-green-800">
-                    <span className="text-green-300">🖥️ Terminal Log</span>
+            {/* Pending Changes Banner - flex-shrink-0 */}
+            {pendingChanges.length > 0 && (
+              <div className="flex-shrink-0 border-t border-white/10 bg-amber-950/30 border-amber-800/30 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-amber-200">
+                      {pendingChanges.length} file(s) ready
+                    </p>
+                    <p className="text-xs text-amber-300/70">
+                      Review before deploying
+                    </p>
                   </div>
-                  <div className="h-32 overflow-y-auto p-4">
-                    <div className="space-y-1">
-                      {logs.map((log, index) => (
-                        <div key={index} className="text-green-400">
-                          $ {log}
-                        </div>
-                      ))}
-                      {isSendingMessage && (
-                        <div className="flex items-center gap-2">
-                          <span>$ </span>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pending Changes Banner - flex-shrink-0 */}
-              {pendingChanges.length > 0 && (
-                <div className="border rounded-2xl bg-accent/50 p-4 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {pendingChanges.length} file(s) ready to deploy
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Review the changes before deploying
-                      </p>
-                    </div>
-                    <Button
-                      onClick={handleOpenReviewModal}
-                      disabled={isDeploying}
-                      className="gap-2"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Review Changes
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Deploy Result - flex-shrink-0 */}
-              {deployResult && (
-                <div
-                  className={`border rounded-2xl p-4 flex-shrink-0 ${
-                    deployResult.success
-                      ? "bg-green-500/10 text-green-600"
-                      : "bg-destructive/10 text-destructive"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {deployResult.success ? (
-                      <CheckCircle className="h-4 w-4" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4" />
-                    )}
-                    <p className="text-sm">{deployResult.message}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Chat Input - Robust multi-line textarea with absolute button positioning */}
-              <div className="border rounded-2xl p-4 flex-shrink-0">
-                <div className="relative">
-                  <textarea
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSendMessage()
-                      }
-                    }}
-                    placeholder="Describe what you want to build or modify..."
-                    disabled={isSendingMessage}
-                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 resize-none overflow-y-auto min-h-[80px] focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
-                  />
                   <Button
-                    onClick={handleSendMessage}
-                    disabled={!inputMessage.trim() || isSendingMessage}
-                    size="icon"
-                    className="absolute bottom-3 right-3 h-8 w-8"
+                    onClick={handleOpenReviewModal}
+                    disabled={isDeploying}
+                    size="sm"
+                    className="gap-1 flex-shrink-0"
                   >
-                    {isSendingMessage ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
+                    <Eye className="h-3 w-3" />
+                    Review
                   </Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
-            {/* Code Preview Tab - Compact spacing for code editor with minimal padding */}
-            <TabsContent
-              value="code"
-              className="flex-1 h-full flex flex-col overflow-hidden min-h-0 px-2 py-2"
-            >
-              {selectedFile && !loadingFile ? (
-                <div className="flex-1 flex flex-col overflow-hidden border rounded-lg bg-card min-h-0">
-                  <div className="border-b border-border/70 bg-muted px-2 py-1.5 flex-shrink-0">
-                    <p className="text-xs font-mono font-medium text-muted-foreground truncate">
-                      {selectedFile}
-                    </p>
-                  </div>
-                  <div className="flex-1 overflow-hidden min-h-0">
-                    <Editor
-                      height="100%"
-                      width="100%"
-                      language={getLanguageFromFilename(selectedFile)}
-                      value={fileContent}
-                      theme="vs-dark"
-                      options={{
-                        readOnly: true,
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: "on",
-                        scrollBeyondLastLine: false,
-                        padding: { top: 8, bottom: 8 },
-                      }}
-                    />
-                  </div>
+            {/* Deploy Result - flex-shrink-0 */}
+            {deployResult && (
+              <div
+                className={`flex-shrink-0 border-t p-3 ${
+                  deployResult.success
+                    ? "bg-green-900/20 border-green-800/30"
+                    : "bg-red-900/20 border-red-800/30"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {deployResult.success ? (
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  )}
+                  <p className={`text-xs ${deployResult.success ? "text-green-300" : "text-red-300"}`}>
+                    {deployResult.message}
+                  </p>
                 </div>
-              ) : loadingFile ? (
-                <div className="flex-1 flex items-center justify-center min-h-0">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Chat Input - Distinct floating look pinned to bottom */}
+            <div className="flex-shrink-0 border-t border-white/10 bg-zinc-800/50 p-3">
+              <div className="relative">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  placeholder="Describe what you want to build or modify..."
+                  disabled={isSendingMessage}
+                  className="w-full bg-zinc-700/50 border border-white/20 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 resize-none overflow-y-auto min-h-[60px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputMessage.trim() || isSendingMessage}
+                  size="sm"
+                  className="absolute bottom-2 right-2 h-7 w-7"
+                >
+                  {isSendingMessage ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT PANEL - Code Editor (IDE/VS Code Aesthetic) */}
+          <div className="w-[60%] flex flex-col h-full bg-[#1e1e1e] overflow-hidden min-h-0">
+            {/* File Tab Bar (VS Code style) */}
+            <div className="flex-shrink-0 border-b border-[#3e3e42] bg-[#252526] h-10 flex items-center px-2">
+              {selectedFile ? (
+                <div className="flex items-center gap-2 h-full bg-[#1e1e1e] border-b border-[#007acc] px-3 py-1.5 rounded-t">
+                  <Code className="h-4 w-4 text-zinc-400" />
+                  <span className="text-xs text-zinc-300 font-mono font-medium truncate max-w-xs">
+                    {selectedFile}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 w-5 p-0 ml-2 hover:bg-zinc-700"
+                    onClick={() => {
+                      const copyText = selectedFile
+                      navigator.clipboard.writeText(copyText)
+                    }}
+                    title="Copy filename"
+                  >
+                    <span className="text-xs">📋</span>
+                  </Button>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center justify-center min-h-0">
-                  <div className="text-center">
-                    <Code className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      Select a file from the tree to preview its content
-                    </p>
-                  </div>
-                </div>
+                <span className="text-xs text-zinc-500">No file selected</span>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+
+            {/* Code Editor Container */}
+            {selectedFile && !loadingFile ? (
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0 bg-[#1e1e1e]">
+                <div className="flex-1 overflow-hidden min-h-0">
+                  <Editor
+                    height="100%"
+                    width="100%"
+                    language={getLanguageFromFilename(selectedFile)}
+                    value={fileContent}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: true,
+                      minimap: { enabled: false },
+                      fontSize: 13,
+                      lineNumbers: "on",
+                      scrollBeyondLastLine: false,
+                      padding: { top: 12, bottom: 12 },
+                      fontFamily: "'Fira Code', 'Monaco', 'Courier New', monospace",
+                    }}
+                  />
+                </div>
+              </div>
+            ) : loadingFile ? (
+              <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-zinc-500 mb-3" />
+                  <p className="text-sm text-zinc-500">Loading file...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
+                <div className="text-center">
+                  <Code className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
+                  <p className="text-sm text-zinc-500">
+                    Select a file to preview
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
