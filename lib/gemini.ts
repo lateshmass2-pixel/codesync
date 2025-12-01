@@ -16,7 +16,6 @@ export async function generateCode(userPrompt: string, fileContext: string) {
     });
 
     console.log("🤖 Asking Gemini 2.5 Pro...");
-
     const systemPrompt = `
       You are an expert Senior Developer.
       
