@@ -215,244 +215,243 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50">
-      <div className="h-screen flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white/30 backdrop-blur-xl border-b border-white/40 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Code className="h-6 w-6 text-slate-700" />
-              <div>
-                <h1 className="text-xl font-semibold text-slate-800">{repoFullName}</h1>
-                <p className="text-sm text-slate-600">AI-Powered Development Workspace</p>
-              </div>
-            </div>
-            <NavRail repoFullName={repoFullName} />
+    <div className="h-screen w-full bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 text-slate-800 font-sans flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="h-20 flex items-center justify-between px-8 bg-white/30 backdrop-blur-xl border-b border-white/50 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+            <Code className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-800">{repoFullName}</h1>
+            <p className="text-xs text-slate-600 font-medium">AI-Powered Development Workspace</p>
           </div>
         </div>
+        <NavRail repoFullName={repoFullName} />
+      </div>
 
-        {/* Main Content - Side by Side Layout */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Chat Panel - Left 40% */}
-          <div className="w-2/5 bg-white/30 backdrop-blur-xl border-r border-white/40 flex flex-col">
-            {/* Chat Header */}
-            <div className="bg-white/20 backdrop-blur-sm border-b border-white/30 px-6 py-4">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-slate-700" />
-                <h2 className="text-lg font-semibold text-slate-800">AI Assistant</h2>
-              </div>
+      {/* Main Content - Glass Panels */}
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+        {/* Chat Panel - Frosted Glass Pane */}
+        <div className="w-[40%] h-full flex flex-col border border-white/50 bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
+          {/* Chat Header */}
+          <div className="h-16 flex items-center gap-2 px-6 border-b border-white/60 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm flex-shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-white" />
             </div>
-
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600">Start a conversation with the AI assistant</p>
-                  <p className="text-sm text-slate-500 mt-2">Ask me to help you build or modify your project</p>
-                </div>
-              ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.role === "user"
-                          ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
-                          : message.role === "system"
-                          ? "bg-red-50/80 text-red-700 border border-red-200/60"
-                          : "bg-white/70 text-slate-800 shadow-sm border border-white/50"
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {/* Terminal Logs */}
-              {logs.length > 0 && (
-                <div className="bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 text-green-400 font-mono text-sm space-y-1">
-                  {logs.map((log, index) => (
-                    <div key={index}>{log}</div>
-                  ))}
-                </div>
-              )}
-
-              {/* Deployment Result */}
-              {deployResult && (
-                <div className={`rounded-xl p-4 border ${
-                  deployResult.success
-                    ? "bg-emerald-50/80 border-emerald-200/60 text-emerald-800"
-                    : "bg-red-50/80 border-red-200/60 text-red-800"
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {deployResult.success ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <XCircle className="h-5 w-5" />
-                    )}
-                    <p className="text-sm font-medium">{deployResult.message}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Pending Changes Banner */}
-              {pendingChanges.length > 0 && (
-                <div className="bg-amber-50/80 backdrop-blur-sm border border-amber-200/60 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">
-                        {pendingChanges.length} pending change{pendingChanges.length > 1 ? "s" : ""} ready
-                      </p>
-                      <p className="text-xs text-amber-700 mt-1">Review and deploy to repository</p>
-                    </div>
-                    <button
-                      onClick={handleOpenReviewModal}
-                      className="px-3 py-1 bg-amber-600/80 hover:bg-amber-700/80 text-white text-sm rounded-lg transition-colors"
-                    >
-                      Review
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input Area */}
-            <div className="bg-white/60 backdrop-blur-md border-t border-white/40 p-4">
-              <div className="flex gap-3">
-                <textarea
-                  rows={3}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder="Ask the AI to help you build something..."
-                  className="flex-1 resize-none bg-white/50 border border-white/50 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-500 focus:bg-white/70 focus:border-white/70 focus:outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendMessage()
-                    }
-                  }}
-                  disabled={isSendingMessage}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isSendingMessage}
-                  className="px-4 py-2 bg-blue-500/80 hover:bg-blue-600/80 disabled:bg-slate-400/50 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2 self-end"
-                >
-                  {isSendingMessage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                  <span className="text-sm font-medium">Send</span>
-                </button>
-              </div>
-            </div>
+            <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
           </div>
 
-          {/* Code Panel - Right 60% */}
-          <div className="flex-1 bg-white/50 backdrop-blur-xl flex flex-col">
-            {/* Code Header */}
-            <div className="bg-white/20 backdrop-blur-sm border-b border-white/30 h-12 flex items-center px-6">
-              <div className="flex items-center gap-2">
-                <Code className="h-4 w-4 text-slate-700" />
-                <h2 className="text-sm font-semibold text-slate-800">Code Editor</h2>
-              </div>
-              {selectedFile && (
-                <div className="ml-auto text-sm text-slate-600">
-                  {selectedFile}
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {messages.length === 0 ? (
+              <div className="text-center py-16 flex flex-col items-center justify-center h-full">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-4">
+                  <MessageSquare className="h-8 w-8 text-slate-400" />
                 </div>
-              )}
-            </div>
+                <p className="text-slate-600 font-medium">Start a conversation with the AI assistant</p>
+                <p className="text-sm text-slate-500 mt-2">Ask me to help you build or modify your project</p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-md ${
+                      message.role === "user"
+                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-br-none shadow-lg"
+                        : message.role === "system"
+                        ? "bg-red-100/70 backdrop-blur-sm text-red-700 border border-red-200/80 rounded-bl-none"
+                        : "bg-white/70 backdrop-blur-md text-slate-800 border border-white/60 rounded-bl-none shadow-sm"
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
 
-            {/* File Tree + Editor */}
-            <div className="flex-1 flex overflow-hidden">
-              {/* File Tree Sidebar */}
-              <div className="w-64 bg-white/30 backdrop-blur-sm border-r border-white/30 overflow-y-auto">
-                <div className="p-4">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Files</h3>
-                  {isLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
-                    </div>
+            {/* Terminal Logs */}
+            {logs.length > 0 && (
+              <div className="bg-slate-950/60 backdrop-blur-sm border border-slate-700/70 rounded-xl p-4 text-green-300 font-mono text-xs space-y-1 shadow-lg">
+                {logs.map((log, index) => (
+                  <div key={index} className="font-medium">{log}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Deployment Result */}
+            {deployResult && (
+              <div className={`rounded-2xl p-4 border shadow-lg backdrop-blur-sm ${
+                deployResult.success
+                  ? "bg-emerald-100/70 border-emerald-300/80 text-emerald-800"
+                  : "bg-red-100/70 border-red-300/80 text-red-800"
+              }`}>
+                <div className="flex items-center gap-3">
+                  {deployResult.success ? (
+                    <CheckCircle className="h-5 w-5 flex-shrink-0" />
                   ) : (
-                    <div className="space-y-1">
-                      {files.map((file) => (
-                        <div
-                          key={file.path}
-                          onClick={() => handleSelectFile(file.path)}
-                          className={`px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
-                            selectedFile === file.path
-                              ? "bg-blue-100/60 text-blue-700 font-medium"
-                              : "text-slate-700 hover:bg-white/50"
-                          }`}
-                        >
-                          {file.name}
-                        </div>
-                      ))}
-                    </div>
+                    <XCircle className="h-5 w-5 flex-shrink-0" />
                   )}
+                  <p className="text-sm font-semibold">{deployResult.message}</p>
                 </div>
               </div>
+            )}
 
-              {/* Monaco Editor Area */}
-              <div className="flex-1 bg-[#1e1e1e] relative">
-                {selectedFile ? (
-                  <div className="h-full">
-                    {/* File Tab */}
-                    <div className="h-10 bg-[#252526] border-b border-[#3c3c3c] flex items-center px-4">
-                      <span className="text-sm text-[#cccccc]">{selectedFile}</span>
-                    </div>
-                    {/* Editor Content - Placeholder for Monaco */}
-                    <div className="h-[calc(100%-2.5rem)] p-4 font-mono text-sm text-[#cccccc] overflow-auto">
-                      {loadingFile ? (
-                        <div className="flex items-center justify-center h-full">
-                          <Loader2 className="h-6 w-6 animate-spin text-[#cccccc]" />
-                        </div>
-                      ) : (
-                        <pre className="whitespace-pre-wrap">{fileContent}</pre>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-[#858585]">
-                    <div className="text-center">
-                      <Code className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Select a file to view its contents</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Deploy Button (when there are pending changes) */}
+            {/* Pending Changes Banner */}
             {pendingChanges.length > 0 && (
-              <div className="bg-white/60 backdrop-blur-md border-t border-white/40 p-4">
+              <div className="bg-amber-100/70 backdrop-blur-sm border border-amber-300/80 rounded-2xl p-4 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-800">
-                      {pendingChanges.length} change{pendingChanges.length > 1 ? "s" : ""} ready to deploy
+                    <p className="text-sm font-semibold text-amber-900">
+                      {pendingChanges.length} pending change{pendingChanges.length > 1 ? "s" : ""} ready
                     </p>
+                    <p className="text-xs text-amber-800 mt-1 font-medium">Review and deploy to repository</p>
                   </div>
                   <button
-                    onClick={handleConfirmAndPush}
-                    disabled={isDeploying}
-                    className="px-6 py-2 bg-green-600/80 hover:bg-green-700/80 disabled:bg-slate-400/50 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-2"
+                    onClick={handleOpenReviewModal}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105"
                   >
-                    {isDeploying ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4" />
-                    )}
-                    <span className="text-sm font-medium">Deploy to GitHub</span>
+                    Review
                   </button>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Input Area - Floating Glass Bar */}
+          <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
+            <div className="flex gap-2 relative">
+              <textarea
+                rows={3}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Ask the AI to help you build something..."
+                className="flex-1 resize-none bg-transparent focus:ring-0 focus:outline-none px-5 py-3 text-slate-800 placeholder-slate-500 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                disabled={isSendingMessage}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isSendingMessage}
+                className="absolute bottom-3 right-3 p-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center"
+              >
+                {isSendingMessage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Code Panel - Slightly Less Opaque Glass Pane */}
+        <div className="flex-1 h-full flex flex-col border border-white/50 bg-white/40 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden">
+          {/* Code Header */}
+          <div className="h-16 flex items-center justify-between px-6 border-b border-white/60 bg-white/20 backdrop-blur-sm flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center">
+                <Code className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-base font-semibold text-slate-800">Code Editor</h2>
+            </div>
+            {selectedFile && (
+              <div className="text-sm text-slate-600 font-medium bg-white/40 px-3 py-1 rounded-lg border border-white/50">
+                {selectedFile}
+              </div>
+            )}
+          </div>
+
+          {/* File Tree + Editor */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* File Tree Sidebar */}
+            <div className="w-64 bg-white/30 border-r border-white/50 overflow-y-auto flex-shrink-0">
+              <div className="p-5">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Files</h3>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {files.map((file) => (
+                      <div
+                        key={file.path}
+                        onClick={() => handleSelectFile(file.path)}
+                        className={`px-3 py-2 rounded-lg cursor-pointer transition-all text-sm font-medium ${
+                          selectedFile === file.path
+                            ? "bg-gradient-to-r from-blue-300/70 to-indigo-300/70 text-blue-900 shadow-md border border-blue-400/60"
+                            : "text-slate-700 hover:bg-white/50 border border-transparent hover:border-white/40"
+                        }`}
+                      >
+                        {file.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Monaco Editor Area */}
+            <div className="flex-1 bg-white/10 backdrop-blur-sm relative flex flex-col">
+              {selectedFile ? (
+                <>
+                  {/* File Tab */}
+                  <div className="h-10 bg-white/20 border-b border-white/40 flex items-center px-5 flex-shrink-0">
+                    <span className="text-sm text-slate-700 font-medium">{selectedFile}</span>
+                  </div>
+                  {/* Editor Content */}
+                  <div className="flex-1 p-6 font-mono text-sm text-slate-700 overflow-auto">
+                    {loadingFile ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+                      </div>
+                    ) : (
+                      <pre className="whitespace-pre-wrap leading-relaxed text-xs">{fileContent}</pre>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center mx-auto mb-4">
+                      <Code className="h-8 w-8 text-slate-500 opacity-70" />
+                    </div>
+                    <p className="text-slate-600 font-medium">Select a file to view its contents</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Deploy Button (when there are pending changes) */}
+          {pendingChanges.length > 0 && (
+            <div className="h-16 bg-white/40 backdrop-blur-md border-t border-white/50 px-6 flex items-center justify-between flex-shrink-0">
+              <p className="text-sm font-semibold text-slate-800">
+                {pendingChanges.length} change{pendingChanges.length > 1 ? "s" : ""} ready to deploy
+              </p>
+              <button
+                onClick={handleConfirmAndPush}
+                disabled={isDeploying}
+                className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                {isDeploying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                Deploy to GitHub
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
