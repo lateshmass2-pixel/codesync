@@ -204,18 +204,18 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-black to-slate-900">
-        <div className="text-center bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-2xl">
-          <AlertCircle className="mx-auto h-12 w-12 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
-          <h2 className="mt-4 text-xl font-semibold text-white">Error Loading Repository</h2>
-          <p className="mt-2 text-sm text-gray-400">{error}</p>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50">
+        <div className="text-center bg-white/60 backdrop-blur-xl border border-white/50 rounded-2xl p-8 shadow-lg">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+          <h2 className="mt-4 text-xl font-semibold text-slate-800">Error Loading Repository</h2>
+          <p className="mt-2 text-sm text-slate-600">{error}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-black to-slate-900">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 text-slate-800 font-sans">
       {/* Top-level layout with NavRail + View Container */}
       <div className="flex flex-1 overflow-hidden">
         {/* Navigation Rail */}
