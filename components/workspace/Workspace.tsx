@@ -379,11 +379,11 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             {/* Chat Tab - Generous padding for comfortable conversation reading */}
             <TabsContent
               value="chat"
-              className="flex-1 flex flex-col overflow-hidden min-h-0 px-8 py-6 space-y-4"
+              className="flex-1 flex flex-col overflow-hidden min-h-0 px-10 py-8 space-y-6"
             >
               {/* Messages Container - flex-1 to take all available space */}
-              <div className="flex-1 overflow-y-auto rounded-2xl border bg-card/50 px-6 py-5 min-h-0 flex flex-col">
-                <div className="space-y-6 h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto rounded-2xl border bg-card/50 px-8 py-6 min-h-0 flex flex-col">
+                <div className="space-y-8 h-full flex flex-col">
                   {messages.length === 0 && (
                     <div className="h-full flex items-center justify-center">
                       <div className="text-center">
@@ -568,11 +568,11 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             {/* Code Preview Tab - Compact spacing for code editor with minimal padding */}
             <TabsContent
               value="code"
-              className="flex-1 h-full flex flex-col overflow-hidden min-h-0 px-4 py-4"
+              className="flex-1 h-full flex flex-col overflow-hidden min-h-0 px-2 py-2"
             >
               {selectedFile && !loadingFile ? (
-                <div className="flex-1 flex flex-col overflow-hidden border rounded-2xl bg-card min-h-0">
-                  <div className="border-b border-border/70 bg-muted px-3 py-2 flex-shrink-0">
+                <div className="flex-1 flex flex-col overflow-hidden border rounded-lg bg-card min-h-0">
+                  <div className="border-b border-border/70 bg-muted px-2 py-1.5 flex-shrink-0">
                     <p className="text-xs font-mono font-medium text-muted-foreground truncate">
                       {selectedFile}
                     </p>
@@ -590,7 +590,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                         fontSize: 14,
                         lineNumbers: "on",
                         scrollBeyondLastLine: false,
-                        padding: { top: 12, bottom: 12 },
+                        padding: { top: 8, bottom: 8 },
                       }}
                     />
                   </div>
@@ -614,30 +614,30 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
         </div>
       </div>
 
-      {/* Review Changes Modal */}
+      {/* Review Changes Modal - Balanced spacing for code review context */}
       <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-6">
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-8">
           <DialogHeader>
-            <DialogTitle>Review Changes</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl">Review Changes</DialogTitle>
+            <DialogDescription className="text-base">
               Review the AI-generated changes before deploying to GitHub
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex gap-6 overflow-hidden">
+          <div className="flex-1 flex gap-8 overflow-hidden">
             {/* File List Sidebar */}
             <div className="w-64 border rounded-lg overflow-hidden flex flex-col">
-              <div className="bg-muted px-3 py-2 border-b">
+              <div className="bg-muted px-4 py-3 border-b">
                 <p className="text-sm font-semibold">
                   Changed Files ({pendingChanges.length})
                 </p>
               </div>
               <ScrollArea className="flex-1">
-                <div className="p-2 space-y-1">
+                <div className="p-3 space-y-2">
                   {pendingChanges.map((change) => (
                     <div
                       key={change.path}
-                      className={`flex items-start gap-2 px-2 py-2 rounded cursor-pointer hover:bg-accent transition-colors ${
+                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-accent transition-colors ${
                         selectedDiffFile === change.path
                           ? "bg-accent"
                           : ""
@@ -647,7 +647,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                       <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm break-all">{change.path}</p>
-                        <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                           change.type === "create"
                             ? "bg-green-500/20 text-green-600"
                             : change.type === "delete"
@@ -671,7 +671,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             <div className="flex-1 border rounded-lg overflow-hidden flex flex-col">
               {selectedDiffFile ? (
                 <>
-                  <div className="bg-muted px-4 py-2 border-b">
+                  <div className="bg-muted px-4 py-3 border-b">
                     <p className="text-sm font-medium">{selectedDiffFile}</p>
                   </div>
                   <div className="flex-1">
