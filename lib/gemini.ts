@@ -11,7 +11,7 @@ export async function generateCode(userPrompt: string, fileContext: string) {
     
     // FIX: Use "gemini-1.5-flash-latest" which is often more stable for the API
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-pro", 
+      model: "gemini-2.0-flash", 
       generationConfig: { responseMimeType: "application/json" } 
     });
 
