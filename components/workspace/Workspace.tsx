@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -360,8 +360,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       </div>
 
       {/* Right Section - Main Content (Scrollable) */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Tabs defaultValue="chat" className="flex h-full flex-col overflow-hidden">
+      <div className="flex-1 flex min-h-0 flex-col overflow-hidden">
+        <Tabs defaultValue="chat" className="flex h-full min-h-0 flex-col overflow-hidden">
           <div className="border-b px-4 flex-shrink-0">
             <TabsList>
               <TabsTrigger value="chat" className="gap-2">
@@ -376,8 +376,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </div>
 
           {/* Chat Tab */}
-          <TabsContent value="chat" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-4">
+          <TabsContent value="chat" className="flex h-full flex-1 min-h-0 flex-col overflow-hidden p-0">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
               <div className="space-y-4">
                 {messages.length === 0 && (
                   <div className="text-center py-12">
@@ -524,8 +524,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
             {/* Chat Input */}
             <div className="border-t p-4 flex-shrink-0">
-              <div className="flex gap-2">
-                <Input
+              <div className="flex gap-2 items-end">
+                <Textarea
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => {
@@ -536,12 +536,14 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                   }}
                   placeholder="Describe what you want to build or modify..."
                   disabled={isSendingMessage}
-                  className="flex-1"
+                  rows={3}
+                  className="flex-1 resize-none overflow-y-auto"
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!inputMessage.trim() || isSendingMessage}
                   size="icon"
+                  className="h-10 w-10"
                 >
                   {isSendingMessage ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -554,13 +556,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           </TabsContent>
 
           {/* Code Preview Tab */}
-          <TabsContent value="code" className="flex-1 m-0 p-0 overflow-hidden flex flex-col">
+          <TabsContent value="code" className="flex h-full flex-1 min-h-0 flex-col overflow-hidden p-0">
             {selectedFile && !loadingFile ? (
               <>
                 <div className="border-b bg-muted px-4 py-2 flex-shrink-0">
                   <p className="text-sm font-medium">{selectedFile}</p>
                 </div>
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 h-full min-h-0 overflow-hidden">
                   <Editor
                     height="100%"
                     language={getLanguageFromFilename(selectedFile)}
