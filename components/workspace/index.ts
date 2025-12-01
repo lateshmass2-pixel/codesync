@@ -1,2 +1,5 @@
 export { Workspace } from "./Workspace"
 export { FileTree } from "./FileTree"
+export { NavRail } from "./NavRail"
+export { ChatView } from "./ChatView"
+export { CodeView } from "./CodeView"

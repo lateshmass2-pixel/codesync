@@ -1,38 +1,18 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from "react"
-import Editor from "@monaco-editor/react"
-import {
-  MessageSquare,
-  Code,
-  Send,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  GitCommit,
-  Folder,
-  File,
-  Eye,
-} from "lucide-react"
+import React, { useState, useEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
+import { AlertCircle } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { 
   getFileTree, 
-  getFileContent, 
+  getFileContent,
   generateCodeWithGemini, 
   deployChanges 
 } from "@/app/actions/workspace"
-import { CodeDiffViewer } from "./CodeDiffViewer"
+import { NavRail } from "./NavRail"
+import { ChatView } from "./ChatView"
+import { CodeView } from "./CodeView"
 
 interface FileNode {
   name: string
@@ -55,21 +35,26 @@ interface WorkspaceProps {
 
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
+  const searchParams = useSearchParams()
+  const currentView = (searchParams.get("view") as "chat" | "code") || "chat"
   
+  // File explorer state
   const [files, setFiles] = useState<FileNode[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
+  // Code view state
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>("")
   const [loadingFile, setLoadingFile] = useState(false)
 
+  // Chat state - persists across view switches
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
 
+  // Generation state
   const [logs, setLogs] = useState<string[]>([])
-
   const [pendingChanges, setPendingChanges] = useState<Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>>([])
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployResult, setDeployResult] = useState<{
@@ -77,16 +62,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     message: string
   } | null>(null)
 
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
-  const [selectedDiffFile, setSelectedDiffFile] = useState<string | null>(null)
-  const [originalFileContent, setOriginalFileContent] = useState<string>("")
-  const [loadingOriginalContent, setLoadingOriginalContent] = useState(false)
-
-  const chatEndRef = useRef<HTMLDivElement>(null)
-
-  // ---------------------------------------------------------
-  // 1. DEFINE THE FUNCTION FIRST (Wrap in useCallback)
-  // ---------------------------------------------------------
+  // Load file tree
   const loadFileTree = useCallback(async () => {
     setIsLoading(true)
     setError(null)
@@ -101,6 +77,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }, [repoFullName])
 
+  // Load file content
   const loadFileContent = useCallback(async (path: string) => {
     setLoadingFile(true)
     
@@ -115,28 +92,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }, [repoFullName])
 
-  const loadOriginalContent = useCallback(async (path: string, isNewFile: boolean) => {
-    if (isNewFile) {
-      setOriginalFileContent("")
-      return
-    }
-
-    setLoadingOriginalContent(true)
-    
-    try {
-      const content = await getFileContent(repoFullName, path)
-      setOriginalFileContent(content || "")
-    } catch (err) {
-      console.error("Failed to load original content:", err)
-      setOriginalFileContent("")
-    } finally {
-      setLoadingOriginalContent(false)
-    }
-  }, [repoFullName])
-
-  // ---------------------------------------------------------
-  // 2. THEN CALL IT IN USEEFFECT
-  // ---------------------------------------------------------
+  // Initialize file tree on mount
   useEffect(() => {
     loadFileTree()
   }, [loadFileTree])
@@ -147,22 +103,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       loadFileContent(selectedFile)
     }
   }, [selectedFile, loadFileContent])
-
-  // Load original content when diff file is selected
-  useEffect(() => {
-    if (selectedDiffFile && isReviewModalOpen) {
-      const change = pendingChanges.find((c) => c.path === selectedDiffFile)
-      if (change) {
-        const isNewFile = change.type === "create"
-        loadOriginalContent(selectedDiffFile, isNewFile)
-      }
-    }
-  }, [selectedDiffFile, isReviewModalOpen, pendingChanges, loadOriginalContent])
-
-  // Scroll to bottom of chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
 
   const handleSelectFile = (path: string) => {
     setSelectedFile(path)
@@ -175,7 +115,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setInputMessage("")
     setIsSendingMessage(true)
     setDeployResult(null)
-    setLogs([]) // Clear previous logs
+    setLogs([])
 
     // Add user message to chat
     const newMessages: ChatMessage[] = [
@@ -227,18 +167,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   const handleOpenReviewModal = () => {
     if (pendingChanges.length === 0) return
-    
-    setIsReviewModalOpen(true)
-    
-    if (pendingChanges.length > 0) {
-      setSelectedDiffFile(pendingChanges[0].path)
-    }
-  }
-
-  const handleCloseReviewModal = () => {
-    setIsReviewModalOpen(false)
-    setSelectedDiffFile(null)
-    setOriginalFileContent("")
   }
 
   const handleConfirmAndPush = async () => {
@@ -256,7 +184,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           message: "Changes deployed successfully!",
         })
         setPendingChanges([])
-        handleCloseReviewModal()
         await loadFileTree()
       } else {
         setDeployResult({
@@ -275,57 +202,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }
   }
 
-  const getLanguageFromFilename = (filename: string) => {
-    const ext = filename.split(".").pop()?.toLowerCase()
-    const languageMap: Record<string, string> = {
-      js: "javascript",
-      jsx: "javascript",
-      ts: "typescript",
-      tsx: "typescript",
-      py: "python",
-      java: "java",
-      cpp: "cpp",
-      c: "c",
-      cs: "csharp",
-      go: "go",
-      rs: "rust",
-      rb: "ruby",
-      php: "php",
-      html: "html",
-      css: "css",
-      scss: "scss",
-      json: "json",
-      xml: "xml",
-      yaml: "yaml",
-      yml: "yaml",
-      md: "markdown",
-      sh: "shell",
-    }
-    return languageMap[ext || ""] || "plaintext"
-  }
-
-  const renderFileTree = (nodes: FileNode[], depth = 0) => {
-    return nodes.map((node) => (
-      <div key={node.path}>
-        <div
-          className={`flex items-center gap-2 px-2 py-1 hover:bg-muted cursor-pointer rounded ${
-            selectedFile === node.path ? "bg-muted" : ""
-          }`}
-          style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          onClick={() => node.type === "file" && handleSelectFile(node.path)}
-        >
-          {node.type === "dir" ? (
-            <Folder className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <File className="h-4 w-4 text-muted-foreground" />
-          )}
-          <span className="text-sm">{node.name}</span>
-        </div>
-        {node.children && renderFileTree(node.children, depth + 1)}
-      </div>
-    ))
-  }
-
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -340,400 +216,43 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
-      {/* Top-level flex container with proper height propagation */}
+      {/* Top-level layout with NavRail + View Container */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - File Explorer (Fixed, Static) */}
-        <div className="w-64 border-r bg-card/50 flex flex-col flex-shrink-0">
-          <div className="border-b p-4 flex-shrink-0">
-            <h2 className="text-sm font-semibold">
-              {owner}/{repo}
-            </h2>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            ) : (
-              renderFileTree(files)
-            )}
-          </div>
-        </div>
+        {/* Navigation Rail */}
+        <NavRail repoFullName={repoFullName} />
 
-        {/* Main Content Area - Split Panel Layout (Chat | Code) */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          
-          {/* LEFT PANEL - Chat Assistant (Messaging App Aesthetic) */}
-          <div className="w-[40%] flex flex-col h-full border-r border-white/10 bg-zinc-900 overflow-hidden min-h-0">
-            {/* Chat Header */}
-            <div className="flex-shrink-0 border-b border-white/10 bg-zinc-800 px-6 py-4">
-              <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-blue-400" />
-                AI Assistant
-              </h3>
-            </div>
-
-            {/* Messages Container - Generous padding for comfortable conversation reading */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 flex flex-col min-h-0">
-              {messages.length === 0 && (
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center">
-                    <MessageSquare className="mx-auto h-12 w-12 text-zinc-500" />
-                    <h3 className="mt-4 text-base font-semibold text-zinc-200">
-                      Start Building
-                    </h3>
-                    <p className="mt-2 text-sm text-zinc-400 max-w-xs mx-auto leading-relaxed">
-                      Describe what you want to build or modify. I&apos;ll analyze the repository and generate code changes.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {messages.length > 0 && (
-                <>
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-lg px-4 py-3 ${
-                          message.role === "user"
-                            ? "bg-blue-600 text-white"
-                            : message.role === "system"
-                              ? "bg-red-900/30 text-red-300 border border-red-800/50"
-                              : "bg-zinc-700 text-zinc-100"
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                          {message.content}
-                        </p>
-                        {message.changes && message.changes.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-white/20">
-                            <p className="text-xs font-semibold mb-2 opacity-90">
-                              Changes ({message.changes.length} files):
-                            </p>
-                            <ul className="text-xs space-y-1">
-                              {message.changes.map((change, idx) => (
-                                <li key={idx} className="flex items-center gap-2">
-                                  <span
-                                    className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                      change.type === "create"
-                                        ? "bg-green-500/30 text-green-300"
-                                        : change.type === "delete"
-                                          ? "bg-red-500/30 text-red-300"
-                                          : "bg-blue-500/30 text-blue-300"
-                                    }`}
-                                  >
-                                    {change.type === "create"
-                                      ? "new"
-                                      : change.type === "delete"
-                                        ? "deleted"
-                                        : "modified"}
-                                  </span>
-                                  <span className="text-zinc-300">{change.path}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {isSendingMessage && (
-                    <div className="flex justify-start">
-                      <div className="bg-zinc-700 text-zinc-100 rounded-lg px-4 py-3">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      </div>
-                    </div>
-                  )}
-
-                  <div ref={chatEndRef} />
-                </>
-              )}
-            </div>
-
-            {/* Terminal Log Window - flex-shrink-0 to maintain fixed height */}
-            {isSendingMessage && logs.length > 0 && (
-              <div className="flex-shrink-0 border-t border-white/10 bg-black text-green-400 font-mono text-xs overflow-hidden">
-                <div className="px-4 py-2 border-b border-green-800 bg-black/50">
-                  <span className="text-green-300 text-xs">🖥️ Terminal</span>
-                </div>
-                <div className="h-28 overflow-y-auto p-3 space-y-1">
-                  {logs.map((log, index) => (
-                    <div key={index} className="text-green-400">
-                      $ {log}
-                    </div>
-                  ))}
-                  {isSendingMessage && (
-                    <div className="flex items-center gap-1">
-                      <span>$ </span>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Pending Changes Banner - flex-shrink-0 */}
-            {pendingChanges.length > 0 && (
-              <div className="flex-shrink-0 border-t border-white/10 bg-amber-950/30 border-amber-800/30 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-amber-200">
-                      {pendingChanges.length} file(s) ready
-                    </p>
-                    <p className="text-xs text-amber-300/70">
-                      Review before deploying
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleOpenReviewModal}
-                    disabled={isDeploying}
-                    size="sm"
-                    className="gap-1 flex-shrink-0"
-                  >
-                    <Eye className="h-3 w-3" />
-                    Review
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Deploy Result - flex-shrink-0 */}
-            {deployResult && (
-              <div
-                className={`flex-shrink-0 border-t p-3 ${
-                  deployResult.success
-                    ? "bg-green-900/20 border-green-800/30"
-                    : "bg-red-900/20 border-red-800/30"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {deployResult.success ? (
-                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                  )}
-                  <p className={`text-xs ${deployResult.success ? "text-green-300" : "text-red-300"}`}>
-                    {deployResult.message}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Chat Input - Distinct floating look pinned to bottom */}
-            <div className="flex-shrink-0 border-t border-white/10 bg-zinc-800/50 p-3">
-              <div className="relative">
-                <textarea
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendMessage()
-                    }
-                  }}
-                  placeholder="Describe what you want to build or modify..."
-                  disabled={isSendingMessage}
-                  className="w-full bg-zinc-700/50 border border-white/20 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 resize-none overflow-y-auto min-h-[60px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50"
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isSendingMessage}
-                  size="sm"
-                  className="absolute bottom-2 right-2 h-7 w-7"
-                >
-                  {isSendingMessage ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Send className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT PANEL - Code Editor (IDE/VS Code Aesthetic) */}
-          <div className="w-[60%] flex flex-col h-full bg-[#1e1e1e] overflow-hidden min-h-0">
-            {/* File Tab Bar (VS Code style) */}
-            <div className="flex-shrink-0 border-b border-[#3e3e42] bg-[#252526] h-10 flex items-center px-2">
-              {selectedFile ? (
-                <div className="flex items-center gap-2 h-full bg-[#1e1e1e] border-b border-[#007acc] px-3 py-1.5 rounded-t">
-                  <Code className="h-4 w-4 text-zinc-400" />
-                  <span className="text-xs text-zinc-300 font-mono font-medium truncate max-w-xs">
-                    {selectedFile}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-5 w-5 p-0 ml-2 hover:bg-zinc-700"
-                    onClick={() => {
-                      const copyText = selectedFile
-                      navigator.clipboard.writeText(copyText)
-                    }}
-                    title="Copy filename"
-                  >
-                    <span className="text-xs">📋</span>
-                  </Button>
-                </div>
-              ) : (
-                <span className="text-xs text-zinc-500">No file selected</span>
-              )}
-            </div>
-
-            {/* Code Editor Container */}
-            {selectedFile && !loadingFile ? (
-              <div className="flex-1 flex flex-col overflow-hidden min-h-0 bg-[#1e1e1e]">
-                <div className="flex-1 overflow-hidden min-h-0">
-                  <Editor
-                    height="100%"
-                    width="100%"
-                    language={getLanguageFromFilename(selectedFile)}
-                    value={fileContent}
-                    theme="vs-dark"
-                    options={{
-                      readOnly: true,
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      lineNumbers: "on",
-                      scrollBeyondLastLine: false,
-                      padding: { top: 12, bottom: 12 },
-                      fontFamily: "'Fira Code', 'Monaco', 'Courier New', monospace",
-                    }}
-                  />
-                </div>
-              </div>
-            ) : loadingFile ? (
-              <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-zinc-500 mb-3" />
-                  <p className="text-sm text-zinc-500">Loading file...</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
-                <div className="text-center">
-                  <Code className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
-                  <p className="text-sm text-zinc-500">
-                    Select a file to preview
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Main View Container */}
+        {currentView === "chat" ? (
+          // Full-screen Chat View
+          <ChatView
+            messages={messages}
+            inputMessage={inputMessage}
+            isSendingMessage={isSendingMessage}
+            logs={logs}
+            pendingChanges={pendingChanges}
+            deployResult={deployResult}
+            onInputChange={setInputMessage}
+            onSendMessage={handleSendMessage}
+            onOpenReviewModal={handleOpenReviewModal}
+            repoFullName={repoFullName}
+          />
+        ) : (
+          // Full-screen Code View with File Tree + Editor
+          <CodeView
+            files={files}
+            selectedFile={selectedFile}
+            fileContent={fileContent}
+            loadingFile={loadingFile}
+            pendingChanges={pendingChanges}
+            onSelectFile={handleSelectFile}
+            onOpenReviewModal={handleOpenReviewModal}
+            onConfirmAndPush={handleConfirmAndPush}
+            isDeploying={isDeploying}
+            repoFullName={repoFullName}
+            isLoading={isLoading}
+          />
+        )}
       </div>
-
-      {/* Review Changes Modal - Balanced spacing for code review context */}
-      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-8">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Review Changes</DialogTitle>
-            <DialogDescription className="text-base">
-              Review the AI-generated changes before deploying to GitHub
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 flex gap-8 overflow-hidden">
-            {/* File List Sidebar */}
-            <div className="w-64 border rounded-lg overflow-hidden flex flex-col">
-              <div className="bg-muted px-4 py-3 border-b">
-                <p className="text-sm font-semibold">
-                  Changed Files ({pendingChanges.length})
-                </p>
-              </div>
-              <ScrollArea className="flex-1">
-                <div className="p-3 space-y-2">
-                  {pendingChanges.map((change) => (
-                    <div
-                      key={change.path}
-                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-accent transition-colors ${
-                        selectedDiffFile === change.path
-                          ? "bg-accent"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedDiffFile(change.path)}
-                    >
-                      <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm break-all">{change.path}</p>
-                        <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          change.type === "create"
-                            ? "bg-green-500/20 text-green-600"
-                            : change.type === "delete"
-                              ? "bg-red-500/20 text-red-600"
-                              : "bg-blue-500/20 text-blue-600"
-                        }`}>
-                          {change.type === "create"
-                            ? "new"
-                            : change.type === "delete"
-                              ? "deleted"
-                              : "modified"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Diff Viewer */}
-            <div className="flex-1 border rounded-lg overflow-hidden flex flex-col">
-              {selectedDiffFile ? (
-                <>
-                  <div className="bg-muted px-4 py-3 border-b">
-                    <p className="text-sm font-medium">{selectedDiffFile}</p>
-                  </div>
-                  <div className="flex-1">
-                    <CodeDiffViewer
-                      originalContent={originalFileContent}
-                      modifiedContent={
-                        pendingChanges.find((c) => c.path === selectedDiffFile)
-                          ?.content || ""
-                      }
-                      language={getLanguageFromFilename(selectedDiffFile)}
-                      isLoading={loadingOriginalContent}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <Code className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      Select a file to view the diff
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter className="flex justify-between items-center">
-            <Button
-              variant="outline"
-              onClick={handleCloseReviewModal}
-              disabled={isDeploying}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmAndPush}
-              disabled={isDeploying}
-              className="gap-2"
-            >
-              {isDeploying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <GitCommit className="h-4 w-4" />
-              )}
-              Confirm & Push
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
