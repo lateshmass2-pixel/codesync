@@ -204,18 +204,18 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-          <h2 className="mt-4 text-xl font-semibold">Error Loading Repository</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-black to-slate-900">
+        <div className="text-center bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 shadow-2xl">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+          <h2 className="mt-4 text-xl font-semibold text-white">Error Loading Repository</h2>
+          <p className="mt-2 text-sm text-gray-400">{error}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-900 via-black to-slate-900">
       {/* Top-level layout with NavRail + View Container */}
       <div className="flex flex-1 overflow-hidden">
         {/* Navigation Rail */}
