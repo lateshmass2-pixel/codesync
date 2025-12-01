@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Lock, Unlock, Plus, Search, X, Code, Settings } from "lucide-react"
+import { Loader2, Lock, Unlock, Plus, Search, X, Code, FolderGit, Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,19 @@ interface RepoOption {
 interface RepoManagerProps {
   onSelect?: (repo: RepoOption) => void
   disabled?: boolean
+}
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (diffInSeconds < 60) return 'just now'
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} weeks ago`
+  return date.toLocaleDateString()
 }
 
 export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
@@ -183,69 +196,67 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
               <div
                 key={repo.id}
                 onClick={() => handleSelect(repo)}
-                className={`group relative bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-6 cursor-pointer transition-all duration-200 hover:bg-white/60 hover:shadow-lg hover:scale-[1.02] ${
+                className={`group relative bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-6 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 hover:bg-white/60 hover:scale-[1.02] ${
                   selectedRepo?.id === repo.id
-                    ? "ring-2 ring-blue-400/50 bg-white/50"
+                    ? "ring-2 ring-blue-400/60 bg-white/50 shadow-md"
                     : ""
                 }`}
               >
-                {/* Edit Button - Shows on hover */}
+                {/* Edit Button - Hidden on desktop hover, always visible on mobile */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSelect(repo)
                     handleEdit()
                   }}
-                  className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 md:opacity-0 transition-opacity duration-200 bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg p-2 hover:bg-white/80 md:group-hover:opacity-100"
+                  className="absolute top-4 right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 bg-white/80 backdrop-blur-sm border border-white/60 rounded-lg p-2 hover:bg-white shadow-sm hover:shadow"
+                  aria-label="Edit repository"
                 >
-                  <Settings className="h-4 w-4 text-slate-600" />
-                </button>
-
-                {/* Mobile always visible edit button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleSelect(repo)
-                    handleEdit()
-                  }}
-                  className="absolute top-4 right-4 md:hidden bg-white/60 backdrop-blur-sm border border-white/50 rounded-lg p-2 hover:bg-white/80"
-                >
-                  <Settings className="h-4 w-4 text-slate-600" />
+                  <Pencil className="h-4 w-4 text-slate-700" />
                 </button>
 
                 {/* Card Content */}
                 <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${
+                  {/* Large Colorful Icon */}
+                  <div className={`p-4 rounded-xl flex-shrink-0 ${
                     repo.private 
-                      ? 'bg-amber-100/80' 
-                      : 'bg-emerald-100/80'
+                      ? 'bg-gradient-to-br from-amber-400/20 to-orange-400/20 border border-amber-300/30' 
+                      : 'bg-gradient-to-br from-blue-400/20 to-indigo-400/20 border border-blue-300/30'
                   }`}>
-                    {repo.private ? (
-                      <Lock className="h-6 w-6 text-amber-600" />
-                    ) : (
-                      <Unlock className="h-6 w-6 text-emerald-600" />
-                    )}
+                    <FolderGit className={`h-7 w-7 ${
+                      repo.private ? 'text-amber-600' : 'text-blue-600'
+                    }`} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-slate-800 truncate mb-1">
+
+                  {/* Text Content */}
+                  <div className="flex-1 min-w-0 pt-1">
+                    <h3 className="text-lg font-bold text-slate-800 truncate mb-1">
                       {repo.name}
                     </h3>
-                    <p className="text-sm text-slate-600 truncate mb-2">
-                      {repo.fullName}
+                    <p className="text-sm text-slate-500 mb-3">
+                      {repo.updatedAt 
+                        ? `Last updated ${formatTimeAgo(repo.updatedAt)}`
+                        : 'Recently created'
+                      }
                     </p>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                         repo.private 
-                          ? 'bg-amber-100/60 text-amber-700' 
-                          : 'bg-emerald-100/60 text-emerald-700'
+                          ? 'bg-amber-100/70 text-amber-700 border border-amber-200/50' 
+                          : 'bg-emerald-100/70 text-emerald-700 border border-emerald-200/50'
                       }`}>
-                        {repo.private ? "Private" : "Public"}
+                        {repo.private ? (
+                          <>
+                            <Lock className="h-3 w-3" />
+                            Private
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="h-3 w-3" />
+                            Public
+                          </>
+                        )}
                       </span>
-                      {repo.updatedAt && (
-                        <span className="text-xs text-slate-500">
-                          Updated {new Date(repo.updatedAt).toLocaleDateString()}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
