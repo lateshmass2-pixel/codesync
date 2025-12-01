@@ -151,18 +151,18 @@ export function CodeView({
     return nodes.map((node) => (
       <div key={node.path}>
         <div
-          className={`flex items-center gap-2 px-2 py-1 hover:bg-muted cursor-pointer rounded ${
-            selectedFile === node.path ? "bg-muted" : ""
+          className={`flex items-center gap-2 px-2 py-1 hover:bg-white/10 cursor-pointer rounded transition-colors ${
+            selectedFile === node.path ? "bg-white/10 border-l-2 border-purple-500" : ""
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onClick={() => node.type === "file" && onSelectFile(node.path)}
         >
           {node.type === "dir" ? (
-            <Folder className="h-4 w-4 text-muted-foreground" />
+            <Folder className="h-4 w-4 text-purple-400" />
           ) : (
-            <File className="h-4 w-4 text-muted-foreground" />
+            <File className="h-4 w-4 text-gray-400" />
           )}
-          <span className="text-sm">{node.name}</span>
+          <span className="text-sm text-gray-200">{node.name}</span>
         </div>
         {node.children && renderFileTree(node.children, depth + 1)}
       </div>
@@ -173,14 +173,14 @@ export function CodeView({
     <>
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Sidebar - File Explorer (Fixed, Static) */}
-        <div className="w-64 border-r bg-card/50 flex flex-col flex-shrink-0">
-          <div className="border-b p-4 flex-shrink-0">
-            <h2 className="text-sm font-semibold">Files</h2>
+        <div className="w-64 border-r border-white/10 bg-white/5 backdrop-blur-md flex flex-col flex-shrink-0">
+          <div className="border-b border-white/10 p-4 flex-shrink-0">
+            <h2 className="text-sm font-semibold text-white">Files</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
               </div>
             ) : (
               renderFileTree(files)
@@ -189,19 +189,19 @@ export function CodeView({
         </div>
 
         {/* Main Content Area - Code Editor */}
-        <div className="flex-1 flex flex-col h-full bg-[#1e1e1e] overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col h-full bg-black/40 backdrop-blur-xl overflow-hidden min-h-0">
           {/* File Tab Bar (VS Code style) */}
-          <div className="flex-shrink-0 border-b border-[#3e3e42] bg-[#252526] h-10 flex items-center px-2">
+          <div className="flex-shrink-0 border-b border-white/10 bg-white/5 backdrop-blur-md h-10 flex items-center px-2">
             {selectedFile ? (
-              <div className="flex items-center gap-2 h-full bg-[#1e1e1e] border-b border-[#007acc] px-3 py-1.5 rounded-t">
-                <Code className="h-4 w-4 text-zinc-400" />
-                <span className="text-xs text-zinc-300 font-mono font-medium truncate max-w-xs">
+              <div className="flex items-center gap-2 h-full bg-black/40 border-b-2 border-purple-500 px-3 py-1.5 rounded-t shadow-[0_2px_10px_rgba(168,85,247,0.3)]">
+                <Code className="h-4 w-4 text-purple-400" />
+                <span className="text-xs text-gray-200 font-mono font-medium truncate max-w-xs">
                   {selectedFile}
                 </span>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-5 w-5 p-0 ml-2 hover:bg-zinc-700"
+                  className="h-5 w-5 p-0 ml-2 hover:bg-white/10"
                   onClick={() => {
                     const copyText = selectedFile
                     navigator.clipboard.writeText(copyText)
@@ -212,7 +212,7 @@ export function CodeView({
                 </Button>
               </div>
             ) : (
-              <span className="text-xs text-zinc-500">No file selected</span>
+              <span className="text-xs text-gray-500">No file selected</span>
             )}
           </div>
 
@@ -240,16 +240,16 @@ export function CodeView({
             </div>
           ) : loadingFile ? (
             <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-zinc-500 mb-3" />
-                <p className="text-sm text-zinc-500">Loading file...</p>
+              <div className="text-center bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-400 mb-3 mx-auto drop-shadow-[0_0_15px_rgba(168,85,247,0.7)]" />
+                <p className="text-sm text-gray-400">Loading file...</p>
               </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center min-h-0 bg-[#1e1e1e]">
-              <div className="text-center">
-                <Code className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
-                <p className="text-sm text-zinc-500">
+              <div className="text-center bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+                <Code className="mx-auto h-12 w-12 text-purple-400 mb-3 drop-shadow-[0_0_15px_rgba(168,85,247,0.7)]" />
+                <p className="text-sm text-gray-400">
                   Select a file to preview
                 </p>
               </div>
@@ -258,13 +258,13 @@ export function CodeView({
 
           {/* Pending Changes Banner at bottom */}
           {pendingChanges.length > 0 && (
-            <div className="flex-shrink-0 border-t border-white/10 bg-amber-950/30 border-amber-800/30 p-3">
+            <div className="flex-shrink-0 border border-amber-500/30 bg-amber-950/20 backdrop-blur-md p-3 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-200">
+                  <p className="text-xs font-semibold text-amber-300 drop-shadow-[0_0_8px_rgba(252,211,77,0.5)]">
                     {pendingChanges.length} file(s) ready
                   </p>
-                  <p className="text-xs text-amber-300/70">
+                  <p className="text-xs text-amber-400/70">
                     Review before deploying
                   </p>
                 </div>
@@ -272,7 +272,7 @@ export function CodeView({
                   onClick={handleOpenReviewModal}
                   disabled={isDeploying}
                   size="sm"
-                  className="gap-1 flex-shrink-0"
+                  className="gap-1 flex-shrink-0 bg-gradient-to-r from-indigo-500 to-purple-500 hover:scale-105 transition-transform shadow-lg shadow-purple-500/50"
                 >
                   <Eye className="h-3 w-3" />
                   Review
@@ -285,19 +285,19 @@ export function CodeView({
 
       {/* Review Changes Modal */}
       <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-8">
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-8 bg-gradient-to-br from-gray-900 via-black to-slate-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-xl">Review Changes</DialogTitle>
-            <DialogDescription className="text-base">
+            <DialogTitle className="text-xl text-white">Review Changes</DialogTitle>
+            <DialogDescription className="text-base text-gray-400">
               Review the AI-generated changes before deploying to GitHub
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 flex gap-8 overflow-hidden">
             {/* File List Sidebar */}
-            <div className="w-64 border rounded-lg overflow-hidden flex flex-col">
-              <div className="bg-muted px-4 py-3 border-b">
-                <p className="text-sm font-semibold">
+            <div className="w-64 border border-white/10 bg-white/5 backdrop-blur-md rounded-lg overflow-hidden flex flex-col">
+              <div className="bg-white/10 backdrop-blur-sm px-4 py-3 border-b border-white/10">
+                <p className="text-sm font-semibold text-white">
                   Changed Files ({pendingChanges.length})
                 </p>
               </div>
@@ -306,22 +306,22 @@ export function CodeView({
                   {pendingChanges.map((change) => (
                     <div
                       key={change.path}
-                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-accent transition-colors ${
+                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-white/10 transition-colors ${
                         selectedDiffFile === change.path
-                          ? "bg-accent"
+                          ? "bg-white/10 border-l-2 border-purple-500"
                           : ""
                       }`}
                       onClick={() => setSelectedDiffFile(change.path)}
                     >
-                      <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                      <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm break-all">{change.path}</p>
+                        <p className="text-sm break-all text-gray-200">{change.path}</p>
                         <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                           change.type === "create"
-                            ? "bg-green-500/20 text-green-600"
+                            ? "bg-green-500/30 text-green-300"
                             : change.type === "delete"
-                              ? "bg-red-500/20 text-red-600"
-                              : "bg-blue-500/20 text-blue-600"
+                              ? "bg-red-500/30 text-red-300"
+                              : "bg-blue-500/30 text-blue-300"
                         }`}>
                           {change.type === "create"
                             ? "new"
@@ -337,11 +337,11 @@ export function CodeView({
             </div>
 
             {/* Diff Viewer */}
-            <div className="flex-1 border rounded-lg overflow-hidden flex flex-col">
+            <div className="flex-1 border border-white/10 bg-white/5 backdrop-blur-md rounded-lg overflow-hidden flex flex-col">
               {selectedDiffFile ? (
                 <>
-                  <div className="bg-muted px-4 py-3 border-b">
-                    <p className="text-sm font-medium">{selectedDiffFile}</p>
+                  <div className="bg-white/10 backdrop-blur-sm px-4 py-3 border-b border-white/10">
+                    <p className="text-sm font-medium text-white">{selectedDiffFile}</p>
                   </div>
                   <div className="flex-1">
                     <CodeDiffViewer
@@ -357,9 +357,9 @@ export function CodeView({
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <Code className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <p className="mt-4 text-sm text-muted-foreground">
+                  <div className="text-center bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+                    <Code className="mx-auto h-12 w-12 text-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.7)]" />
+                    <p className="mt-4 text-sm text-gray-400">
                       Select a file to view the diff
                     </p>
                   </div>
@@ -373,13 +373,14 @@ export function CodeView({
               variant="outline"
               onClick={handleCloseReviewModal}
               disabled={isDeploying}
+              className="border-white/20 hover:bg-white/10 text-white"
             >
               Cancel
             </Button>
             <Button
               onClick={handleConfirmAndPush}
               disabled={isDeploying}
-              className="gap-2"
+              className="gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:scale-105 transition-transform shadow-lg shadow-purple-500/50"
             >
               {isDeploying ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
