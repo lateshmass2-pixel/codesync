@@ -524,7 +524,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                 </div>
               )}
 
-              {/* Chat Input - Redesigned with textarea and absolute button positioning */}
+              {/* Chat Input - Robust multi-line textarea with absolute button positioning */}
               <div className="border-t p-4 flex-shrink-0">
                 <div className="relative">
                   <textarea
@@ -538,7 +538,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                     }}
                     placeholder="Describe what you want to build or modify..."
                     disabled={isSendingMessage}
-                    className="w-full bg-secondary resize-none overflow-y-auto rounded-xl pl-4 pr-12 py-3 min-h-[80px] border border-input focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                    className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-3 resize-none overflow-y-auto min-h-[80px] focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
                   />
                   <Button
                     onClick={handleSendMessage}
@@ -556,35 +556,38 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               </div>
             </TabsContent>
 
-            {/* Code Preview Tab - Full height with flex-1 */}
-            <TabsContent value="code" className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
+            {/* Code Preview Tab - Full height with flex-1 and absolute positioning */}
+            <TabsContent value="code" className="flex-1 h-full flex flex-col overflow-hidden min-h-0 p-0 relative">
               {selectedFile && !loadingFile ? (
                 <>
                   <div className="border-b bg-muted px-4 py-2 flex-shrink-0">
                     <p className="text-sm font-medium">{selectedFile}</p>
                   </div>
-                  <div className="flex-1 overflow-hidden min-h-0">
-                    <Editor
-                      height="100%"
-                      language={getLanguageFromFilename(selectedFile)}
-                      value={fileContent}
-                      theme="vs-dark"
-                      options={{
-                        readOnly: true,
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        lineNumbers: "on",
-                        scrollBeyondLastLine: false,
-                      }}
-                    />
+                  <div className="flex-1 h-full relative overflow-hidden min-h-0">
+                    <div className="absolute inset-0">
+                      <Editor
+                        height="100%"
+                        width="100%"
+                        language={getLanguageFromFilename(selectedFile)}
+                        value={fileContent}
+                        theme="vs-dark"
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          lineNumbers: "on",
+                          scrollBeyondLastLine: false,
+                        }}
+                      />
+                    </div>
                   </div>
                 </>
               ) : loadingFile ? (
-                <div className="flex-1 flex items-center justify-center min-h-0">
+                <div className="flex-1 h-full flex items-center justify-center min-h-0">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="flex-1 flex items-center justify-center min-h-0">
+                <div className="flex-1 h-full flex items-center justify-center min-h-0">
                   <div className="text-center">
                     <Code className="mx-auto h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 text-sm text-muted-foreground">
