@@ -379,80 +379,86 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             {/* Chat Tab */}
             <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden min-h-0 p-0">
               {/* Messages Container - flex-1 to take all available space */}
-              <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 min-h-0 flex flex-col">
+                <div className="space-y-4 h-full flex flex-col">
                   {messages.length === 0 && (
-                    <div className="text-center py-12">
-                      <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-4 text-lg font-semibold">
-                        Start Building
-                      </h3>
-                      <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-                        Tell me what you want to build or modify. I&apos;ll analyze
-                        the repository and generate the necessary code changes using AI with full file context.
-                      </p>
-                    </div>
-                  )}
-
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : message.role === "system"
-                              ? "bg-destructive/10 text-destructive"
-                              : "bg-muted"
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">
-                          {message.content}
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-semibold">
+                          Start Building
+                        </h3>
+                        <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
+                          Tell me what you want to build or modify. I&apos;ll analyze
+                          the repository and generate the necessary code changes using AI with full file context.
                         </p>
-                        {message.changes && message.changes.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-border/50">
-                            <p className="text-xs font-semibold mb-1">
-                              Changes ({message.changes.length} files):
-                            </p>
-                            <ul className="text-xs space-y-1">
-                              {message.changes.map((change, idx) => (
-                                <li key={idx} className="flex items-center gap-1">
-                                  <span
-                                    className={`inline-block px-1 rounded text-[10px] ${
-                                      change.type === "create"
-                                        ? "bg-green-500/20 text-green-600"
-                                        : change.type === "delete"
-                                          ? "bg-red-500/20 text-red-600"
-                                          : "bg-blue-500/20 text-blue-600"
-                                    }`}
-                                  >
-                                    {change.type === "create"
-                                      ? "new"
-                                      : change.type === "delete"
-                                        ? "deleted"
-                                        : "modified"}
-                                  </span>
-                                  {change.path}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {isSendingMessage && (
-                    <div className="flex justify-start">
-                      <div className="rounded-lg bg-muted px-4 py-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
                       </div>
                     </div>
                   )}
 
-                  <div ref={chatEndRef} />
+                  {messages.length > 0 && (
+                    <>
+                      {messages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                              message.role === "user"
+                                ? "bg-primary text-primary-foreground"
+                                : message.role === "system"
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-muted"
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">
+                              {message.content}
+                            </p>
+                            {message.changes && message.changes.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-border/50">
+                                <p className="text-xs font-semibold mb-1">
+                                  Changes ({message.changes.length} files):
+                                </p>
+                                <ul className="text-xs space-y-1">
+                                  {message.changes.map((change, idx) => (
+                                    <li key={idx} className="flex items-center gap-1">
+                                      <span
+                                        className={`inline-block px-1 rounded text-[10px] ${
+                                          change.type === "create"
+                                            ? "bg-green-500/20 text-green-600"
+                                            : change.type === "delete"
+                                              ? "bg-red-500/20 text-red-600"
+                                              : "bg-blue-500/20 text-blue-600"
+                                        }`}
+                                      >
+                                        {change.type === "create"
+                                          ? "new"
+                                          : change.type === "delete"
+                                            ? "deleted"
+                                            : "modified"}
+                                      </span>
+                                      {change.path}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {isSendingMessage && (
+                        <div className="flex justify-start">
+                          <div className="rounded-lg bg-muted px-4 py-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        </div>
+                      )}
+
+                      <div ref={chatEndRef} />
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -556,38 +562,36 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               </div>
             </TabsContent>
 
-            {/* Code Preview Tab - Full height with flex-1 and absolute positioning */}
-            <TabsContent value="code" className="flex-1 h-full flex flex-col overflow-hidden min-h-0 p-0 relative">
+            {/* Code Preview Tab - Full height with flex-1 and proper top alignment */}
+            <TabsContent value="code" className="flex-1 h-full flex flex-col overflow-hidden min-h-0 p-0 justify-start">
               {selectedFile && !loadingFile ? (
                 <>
                   <div className="border-b bg-muted px-4 py-2 flex-shrink-0">
                     <p className="text-sm font-medium">{selectedFile}</p>
                   </div>
-                  <div className="flex-1 h-full relative overflow-hidden min-h-0">
-                    <div className="absolute inset-0">
-                      <Editor
-                        height="100%"
-                        width="100%"
-                        language={getLanguageFromFilename(selectedFile)}
-                        value={fileContent}
-                        theme="vs-dark"
-                        options={{
-                          readOnly: true,
-                          minimap: { enabled: false },
-                          fontSize: 14,
-                          lineNumbers: "on",
-                          scrollBeyondLastLine: false,
-                        }}
-                      />
-                    </div>
+                  <div className="flex-1 overflow-hidden min-h-0">
+                    <Editor
+                      height="100%"
+                      width="100%"
+                      language={getLanguageFromFilename(selectedFile)}
+                      value={fileContent}
+                      theme="vs-dark"
+                      options={{
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        lineNumbers: "on",
+                        scrollBeyondLastLine: false,
+                      }}
+                    />
                   </div>
                 </>
               ) : loadingFile ? (
-                <div className="flex-1 h-full flex items-center justify-center min-h-0">
+                <div className="flex-1 flex items-center justify-center min-h-0">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="flex-1 h-full flex items-center justify-center min-h-0">
+                <div className="flex-1 flex items-center justify-center min-h-0">
                   <div className="text-center">
                     <Code className="mx-auto h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 text-sm text-muted-foreground">

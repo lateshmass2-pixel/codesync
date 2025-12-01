@@ -59,7 +59,8 @@ export async function generateCode(userPrompt: string, fileContext: string) {
   } catch (error) {
     console.error("Gemini Error:", error);
     // Fallback: If Flash fails (404), try the older stable model "gemini-pro"
-    if (error.message.includes("404") || error.message.includes("not found")) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("404") || errorMessage.includes("not found")) {
        console.log("⚠️ Flash model not found. Retrying with 'gemini-pro'...");
        // Note: recursive retry logic would go here, but for now just throw readable error
        throw new Error("Gemini Flash 1.5 not found. Please run 'npm install @google/generative-ai@latest'");
