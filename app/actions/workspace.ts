@@ -1,5 +1,4 @@
 "use server"
-export const maxDuration = 60;
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
