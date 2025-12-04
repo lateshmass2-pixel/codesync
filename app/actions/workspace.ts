@@ -1,4 +1,3 @@
-"use server"
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
