@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-export async function generateCode(userPrompt: string, fileContext: string) {
+export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
   try {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error("Missing GEMINI_API_KEY in .env.local");
@@ -9,15 +9,23 @@ export async function generateCode(userPrompt: string, fileContext: string) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // FIX: Use "gemini-1.5-flash-latest" which is often more stable for the API
+    // Use vision-capable model when image is provided
+    const modelName = imageData ? "gemini-1.5-flash" : "gemini-2.0-flash";
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash", 
+      model: modelName, 
       generationConfig: { responseMimeType: "application/json" } 
     });
 
-    console.log("🤖 Asking Gemini 2.5 Pro...");
-    const systemPrompt = `
-      You are an expert Senior Developer.
+    console.log(`🤖 Asking Gemini ${modelName}${imageData ? ' with vision' : ''}...`);
+    
+    // Prepare the content parts
+    const contentParts: any[] = [];
+    
+    // Add text prompt with context
+    const textPrompt = `
+      You are an expert Senior Developer with vision capabilities.
+      
+      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image along with the file context below.' : ''}
       
       FILE CONTEXT:
       ${fileContext}
@@ -29,7 +37,7 @@ export async function generateCode(userPrompt: string, fileContext: string) {
       1. Return a JSON object ONLY.
       2. Format:
       {
-        "explanation": "Brief summary",
+        "explanation": "Brief summary${imageData ? ' of what you see in the image and' : ''} of the changes made",
         "changes": [
           {
             "path": "path/to/file.ext",
@@ -39,8 +47,20 @@ export async function generateCode(userPrompt: string, fileContext: string) {
         ]
       }
     `;
+    
+    contentParts.push({ text: textPrompt });
+    
+    // Add image if provided
+    if (imageData) {
+      contentParts.push({
+        inlineData: {
+          data: imageData.split(',')[1], // Remove the data:image/png;base64, prefix
+          mimeType: imageData.split(';')[0].split(':')[1] // Extract mime type
+        }
+      });
+    }
 
-    const result = await model.generateContent(systemPrompt);
+    const result = await model.generateContent(contentParts);
     let content = result.response.text();
 
     console.log("📝 Gemini Output:", content.substring(0, 100) + "...");
@@ -61,9 +81,8 @@ export async function generateCode(userPrompt: string, fileContext: string) {
     // Fallback: If Flash fails (404), try the older stable model "gemini-pro"
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("404") || errorMessage.includes("not found")) {
-       console.log("⚠️ Flash model not found. Retrying with 'gemini-pro'...");
-       // Note: recursive retry logic would go here, but for now just throw readable error
-       throw new Error("Gemini Flash 1.5 not found. Please run 'npm install @google/generative-ai@latest'");
+       console.log(`⚠️ ${imageData ? 'Gemini 1.5 Flash vision' : 'Gemini Flash 1.5'} not found. Please run 'npm install @google/generative-ai@latest'`);
+       throw new Error(`${imageData ? 'Gemini 1.5 Flash vision' : 'Gemini Flash 1.5'} not found. Please run 'npm install @google/generative-ai@latest'`);
     }
     throw error;
   }

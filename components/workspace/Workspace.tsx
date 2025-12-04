@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X } from "lucide-react"
 
 import { 
   getFileTree, 
@@ -52,6 +52,10 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  
+  // Vision state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -108,6 +112,25 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setSelectedFile(path)
   }
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setSelectedImage(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isSendingMessage) return
 
@@ -136,7 +159,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }, 4000)
 
     try {
-      const result = await generateCodeWithGemini(repoFullName, userMessage)
+      const result = await generateCodeWithGemini(repoFullName, userMessage, selectedImage || undefined)
 
       setLogs(prev => [...prev, "✅ Code generated! Parsing JSON..."])
 
@@ -162,6 +185,10 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       setMessages([...newMessages, errorMessage])
     } finally {
       setIsSendingMessage(false)
+      setSelectedImage(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -323,6 +350,28 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
           {/* Input Area - Floating Glass Bar */}
           <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <img 
+                    src={selectedImage} 
+                    alt="Selected" 
+                    className="h-12 w-12 object-cover rounded border border-white/60"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-600 font-medium">Image attached</p>
+                  </div>
+                  <button
+                    onClick={clearSelectedImage}
+                    className="p-1 rounded-full bg-red-100/80 hover:bg-red-200/80 text-red-600 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="flex gap-2 relative">
               <textarea
                 rows={3}
@@ -338,6 +387,26 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                 }}
                 disabled={isSendingMessage}
               />
+              
+              {/* Upload Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSendingMessage}
+                className="absolute bottom-3 left-3 p-2 rounded-xl bg-white/40 hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-all hover:shadow-md"
+                title="Upload image"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+              
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              
               <button
                 onClick={handleSendMessage}
                 disabled={!inputMessage.trim() || isSendingMessage}
