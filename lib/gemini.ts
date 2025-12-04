@@ -2,16 +2,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
 export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
+  // ✅ FIX: Define modelName OUTSIDE the try block so it is visible in catch
+  const modelName = "gemini-2.5-pro";
+
   try {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error("Missing GEMINI_API_KEY in .env.local");
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // ✅ CORRECT MODEL NAME: "gemini-2.0-flash-exp"
-    // "gemini-2.5" does not exist. "gemini-1.5-flash" is the stable alternative.
-    const modelName = "gemini-2.0-flash";
     
     const model = genAI.getGenerativeModel({ 
       model: modelName, 
@@ -55,7 +54,7 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
       contentParts.push({
         inlineData: {
           data: imageData.split(',')[1], 
-          mimeType: "image/png" // Assuming png, or parse from string
+          mimeType: "image/png" 
         }
       });
     }
