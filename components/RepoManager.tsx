@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Lock, Unlock, Plus, Search, X, Code } from "lucide-react"
+import { Loader2, Lock, Unlock, Plus, Search, X, Code, FolderGit, Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,11 +23,25 @@ interface RepoOption {
   fullName: string
   private: boolean
   htmlUrl: string
+  updatedAt?: string
 }
 
 interface RepoManagerProps {
   onSelect?: (repo: RepoOption) => void
   disabled?: boolean
+}
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (diffInSeconds < 60) return 'just now'
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)} weeks ago`
+  return date.toLocaleDateString()
 }
 
 export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
@@ -126,154 +140,205 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
     repo.fullName.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const label = selectedRepo
-    ? `${selectedRepo.fullName}${selectedRepo.private ? " (private)" : ""}`
-    : "Select a repository"
-
   return (
-    <div className="space-y-4 flex flex-col">
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search repositories..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold text-slate-800 mb-4">Your Projects</h1>
+          <p className="text-slate-600">Select a repository to start building or create a new one</p>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {selectedRepo ? (
-              <div className="flex items-center gap-2">
-                {selectedRepo.private ? (
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Unlock className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span>{label}</span>
-              </div>
-            ) : (
-              <span className="text-muted-foreground">No repository selected</span>
+        {/* Search Bar */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-500" />
+            <Input
+              placeholder="Search repositories..."
+              className="pl-12 h-14 bg-white/40 backdrop-blur-md border border-white/50 text-slate-800 placeholder-slate-500 rounded-2xl focus:bg-white/60 focus:border-white/70"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
             )}
           </div>
         </div>
-      </div>
 
-      <ScrollArea className="h-[400px] border rounded-md p-4">
+        {/* Repository Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center h-96">
+            <div className="bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-slate-600 mx-auto" />
+              <p className="mt-4 text-slate-600">Loading repositories...</p>
+            </div>
           </div>
         ) : repos.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">No repositories found</p>
+          <div className="flex items-center justify-center h-96">
+            <div className="bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-8 text-center">
+              <p className="text-slate-600">No repositories found</p>
+            </div>
           </div>
         ) : filteredRepos.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">No repositories match &quot;{searchQuery}&quot;</p>
+          <div className="flex items-center justify-center h-96">
+            <div className="bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-8 text-center">
+              <p className="text-slate-600">No repositories match &quot;{searchQuery}&quot;</p>
+            </div>
           </div>
         ) : (
-          <div className="space-y-2 pr-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {filteredRepos.map((repo) => (
-              <button
+              <div
                 key={repo.id}
                 onClick={() => handleSelect(repo)}
-                disabled={disabled || isLoading}
-                className={`w-full text-left p-3 rounded-md border transition-colors ${
+                className={`group relative bg-white/40 backdrop-blur-md border border-white/50 rounded-2xl p-6 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 hover:bg-white/60 hover:scale-[1.02] ${
                   selectedRepo?.id === repo.id
-                    ? "border-primary bg-primary/5"
-                    : "border-transparent hover:bg-muted"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    ? "ring-2 ring-blue-400/60 bg-white/50 shadow-md"
+                    : ""
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  {repo.private ? (
-                    <Lock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  ) : (
-                    <Unlock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{repo.fullName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {repo.private ? "Private" : "Public"}
+                {/* Edit Button - Hidden on desktop hover, always visible on mobile */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSelect(repo)
+                    handleEdit()
+                  }}
+                  className="absolute top-4 right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 bg-white/80 backdrop-blur-sm border border-white/60 rounded-lg p-2 hover:bg-white shadow-sm hover:shadow"
+                  aria-label="Edit repository"
+                >
+                  <Pencil className="h-4 w-4 text-slate-700" />
+                </button>
+
+                {/* Card Content */}
+                <div className="flex items-start gap-4">
+                  {/* Large Colorful Icon */}
+                  <div className={`p-4 rounded-xl flex-shrink-0 ${
+                    repo.private 
+                      ? 'bg-gradient-to-br from-amber-400/20 to-orange-400/20 border border-amber-300/30' 
+                      : 'bg-gradient-to-br from-blue-400/20 to-indigo-400/20 border border-blue-300/30'
+                  }`}>
+                    <FolderGit className={`h-7 w-7 ${
+                      repo.private ? 'text-amber-600' : 'text-blue-600'
+                    }`} />
+                  </div>
+
+                  {/* Text Content */}
+                  <div className="flex-1 min-w-0 pt-1">
+                    <h3 className="text-lg font-bold text-slate-800 truncate mb-1">
+                      {repo.name}
+                    </h3>
+                    <p className="text-sm text-slate-500 mb-3">
+                      {repo.updatedAt 
+                        ? `Last updated ${formatTimeAgo(repo.updatedAt)}`
+                        : 'Recently created'
+                      }
                     </p>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        repo.private 
+                          ? 'bg-amber-100/70 text-amber-700 border border-amber-200/50' 
+                          : 'bg-emerald-100/70 text-emerald-700 border border-emerald-200/50'
+                      }`}>
+                        {repo.private ? (
+                          <>
+                            <Lock className="h-3 w-3" />
+                            Private
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="h-3 w-3" />
+                            Public
+                          </>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
-      </ScrollArea>
 
-      <div className="flex gap-2 pt-2">
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" disabled={disabled || isLoading} className="flex-1">
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Repository
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Repository</DialogTitle>
-              <DialogDescription>
-                Create a new GitHub repository to start building your project.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="repo-name" className="text-sm font-medium">
-                  Repository Name
-                </label>
-                <Input
-                  id="repo-name"
-                  placeholder="my-awesome-project"
-                  value={newRepoName}
-                  onChange={(e) => setNewRepoName(e.target.value)}
-                  disabled={isCreating}
-                />
+        {/* Action Buttons */}
+        <div className="flex gap-4 max-w-md mx-auto">
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                disabled={disabled || isLoading} 
+                className="flex-1 h-14 bg-white/40 backdrop-blur-md border border-white/50 text-slate-800 hover:bg-white/60 rounded-2xl font-medium"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Create New Repository
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-white/80 backdrop-blur-xl border border-white/60">
+              <DialogHeader>
+                <DialogTitle className="text-slate-800">Create New Repository</DialogTitle>
+                <DialogDescription className="text-slate-600">
+                  Create a new GitHub repository to start building your project.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="repo-name" className="text-sm font-medium text-slate-700">
+                    Repository Name
+                  </label>
+                  <Input
+                    id="repo-name"
+                    placeholder="my-awesome-project"
+                    value={newRepoName}
+                    onChange={(e) => setNewRepoName(e.target.value)}
+                    disabled={isCreating}
+                    className="bg-white/60 border-white/50"
+                  />
+                </div>
               </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                  disabled={isCreating}
+                  className="bg-white/40 border-white/50 text-slate-700 hover:bg-white/60"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateRepo}
+                  disabled={!newRepoName.trim() || isCreating}
+                  className="bg-blue-500/80 hover:bg-blue-600/80 text-white border-blue-400/50"
+                >
+                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Repository
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Button 
+            onClick={handleEdit}
+            disabled={!selectedRepo || disabled || isLoading}
+            className="flex-1 h-14 bg-blue-500/80 backdrop-blur-md border border-blue-400/50 text-white hover:bg-blue-600/80 rounded-2xl font-medium gap-2"
+          >
+            <Code className="h-5 w-5" />
+            Edit Project
+          </Button>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mt-6 max-w-md mx-auto">
+            <div className="bg-red-50/80 backdrop-blur-md border border-red-200/60 rounded-2xl p-4">
+              <p className="text-sm text-red-700">{error}</p>
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-                disabled={isCreating}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateRepo}
-                disabled={!newRepoName.trim() || isCreating}
-              >
-                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Repository
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Button 
-          onClick={handleEdit}
-          disabled={!selectedRepo || disabled || isLoading}
-          className="flex-1 gap-2"
-          size="lg"
-        >
-          <Code className="h-4 w-4" />
-          Edit Project
-        </Button>
+          </div>
+        )}
       </div>
-
-      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
     </div>
   )
 }

@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X } from "lucide-react"
 
 import { 
   getFileTree, 
@@ -52,6 +52,10 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  
+  // Vision state
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -108,6 +112,25 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setSelectedFile(path)
   }
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setSelectedImage(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const clearSelectedImage = () => {
+    setSelectedImage(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isSendingMessage) return
 
@@ -136,7 +159,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }, 4000)
 
     try {
-      const result = await generateCodeWithGemini(repoFullName, userMessage)
+      const result = await generateCodeWithGemini(repoFullName, userMessage, selectedImage || undefined)
 
       setLogs(prev => [...prev, "✅ Code generated! Parsing JSON..."])
 
@@ -162,6 +185,10 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       setMessages([...newMessages, errorMessage])
     } finally {
       setIsSendingMessage(false)
+      setSelectedImage(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -220,38 +247,273 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* Navigation Rail */}
         <NavRail repoFullName={repoFullName} />
+      </div>
 
-        {/* Main View Container */}
-        {currentView === "chat" ? (
-          // Full-screen Chat View
-          <ChatView
-            messages={messages}
-            inputMessage={inputMessage}
-            isSendingMessage={isSendingMessage}
-            logs={logs}
-            pendingChanges={pendingChanges}
-            deployResult={deployResult}
-            onInputChange={setInputMessage}
-            onSendMessage={handleSendMessage}
-            onOpenReviewModal={handleOpenReviewModal}
-            repoFullName={repoFullName}
-          />
-        ) : (
-          // Full-screen Code View with File Tree + Editor
-          <CodeView
-            files={files}
-            selectedFile={selectedFile}
-            fileContent={fileContent}
-            loadingFile={loadingFile}
-            pendingChanges={pendingChanges}
-            onSelectFile={handleSelectFile}
-            onOpenReviewModal={handleOpenReviewModal}
-            onConfirmAndPush={handleConfirmAndPush}
-            isDeploying={isDeploying}
-            repoFullName={repoFullName}
-            isLoading={isLoading}
-          />
-        )}
+      {/* Main Content - Glass Panels */}
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+        {/* Chat Panel - Frosted Glass Pane */}
+        <div className="w-[40%] h-full flex flex-col border border-white/50 bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
+          {/* Chat Header */}
+          <div className="h-16 flex items-center gap-2 px-6 border-b border-white/60 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm flex-shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-white" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {messages.length === 0 ? (
+              <div className="text-center py-16 flex flex-col items-center justify-center h-full">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-4">
+                  <MessageSquare className="h-8 w-8 text-slate-400" />
+                </div>
+                <p className="text-slate-600 font-medium">Start a conversation with the AI assistant</p>
+                <p className="text-sm text-slate-500 mt-2">Ask me to help you build or modify your project</p>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-md ${
+                      message.role === "user"
+                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-br-none shadow-lg"
+                        : message.role === "system"
+                        ? "bg-red-100/70 backdrop-blur-sm text-red-700 border border-red-200/80 rounded-bl-none"
+                        : "bg-white/70 backdrop-blur-md text-slate-800 border border-white/60 rounded-bl-none shadow-sm"
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Terminal Logs */}
+            {logs.length > 0 && (
+              <div className="bg-slate-950/60 backdrop-blur-sm border border-slate-700/70 rounded-xl p-4 text-green-300 font-mono text-xs space-y-1 shadow-lg">
+                {logs.map((log, index) => (
+                  <div key={index} className="font-medium">{log}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Deployment Result */}
+            {deployResult && (
+              <div className={`rounded-2xl p-4 border shadow-lg backdrop-blur-sm ${
+                deployResult.success
+                  ? "bg-emerald-100/70 border-emerald-300/80 text-emerald-800"
+                  : "bg-red-100/70 border-red-300/80 text-red-800"
+              }`}>
+                <div className="flex items-center gap-3">
+                  {deployResult.success ? (
+                    <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="h-5 w-5 flex-shrink-0" />
+                  )}
+                  <p className="text-sm font-semibold">{deployResult.message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Pending Changes Banner */}
+            {pendingChanges.length > 0 && (
+              <div className="bg-amber-100/70 backdrop-blur-sm border border-amber-300/80 rounded-2xl p-4 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      {pendingChanges.length} pending change{pendingChanges.length > 1 ? "s" : ""} ready
+                    </p>
+                    <p className="text-xs text-amber-800 mt-1 font-medium">Review and deploy to repository</p>
+                  </div>
+                  <button
+                    onClick={handleOpenReviewModal}
+                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105"
+                  >
+                    Review
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area - Floating Glass Bar */}
+          <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <img 
+                    src={selectedImage} 
+                    alt="Selected" 
+                    className="h-12 w-12 object-cover rounded border border-white/60"
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-600 font-medium">Image attached</p>
+                  </div>
+                  <button
+                    onClick={clearSelectedImage}
+                    className="p-1 rounded-full bg-red-100/80 hover:bg-red-200/80 text-red-600 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 relative">
+              <textarea
+                rows={3}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Ask the AI to help you build something..."
+                className="flex-1 resize-none bg-transparent focus:ring-0 focus:outline-none px-5 py-3 text-slate-800 placeholder-slate-500 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                disabled={isSendingMessage}
+              />
+              
+              {/* Upload Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSendingMessage}
+                className="absolute bottom-3 left-3 p-2 rounded-xl bg-white/40 hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-all hover:shadow-md"
+                title="Upload image"
+              >
+                <Paperclip className="h-4 w-4" />
+              </button>
+              
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isSendingMessage}
+                className="absolute bottom-3 right-3 p-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center"
+              >
+                {isSendingMessage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Code Panel - Slightly Less Opaque Glass Pane */}
+        <div className="flex-1 h-full flex flex-col border border-white/50 bg-white/40 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden">
+          {/* Code Header */}
+          <div className="h-16 flex items-center justify-between px-6 border-b border-white/60 bg-white/20 backdrop-blur-sm flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center">
+                <Code className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="text-base font-semibold text-slate-800">Code Editor</h2>
+            </div>
+            {selectedFile && (
+              <div className="text-sm text-slate-600 font-medium bg-white/40 px-3 py-1 rounded-lg border border-white/50">
+                {selectedFile}
+              </div>
+            )}
+          </div>
+
+          {/* File Tree + Editor */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* File Tree Sidebar */}
+            <div className="w-64 bg-white/30 border-r border-white/50 overflow-y-auto flex-shrink-0">
+              <div className="p-5">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Files</h3>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {files.map((file) => (
+                      <div
+                        key={file.path}
+                        onClick={() => handleSelectFile(file.path)}
+                        className={`px-3 py-2 rounded-lg cursor-pointer transition-all text-sm font-medium ${
+                          selectedFile === file.path
+                            ? "bg-gradient-to-r from-blue-300/70 to-indigo-300/70 text-blue-900 shadow-md border border-blue-400/60"
+                            : "text-slate-700 hover:bg-white/50 border border-transparent hover:border-white/40"
+                        }`}
+                      >
+                        {file.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Monaco Editor Area */}
+            <div className="flex-1 bg-white/10 backdrop-blur-sm relative flex flex-col">
+              {selectedFile ? (
+                <>
+                  {/* File Tab */}
+                  <div className="h-10 bg-white/20 border-b border-white/40 flex items-center px-5 flex-shrink-0">
+                    <span className="text-sm text-slate-700 font-medium">{selectedFile}</span>
+                  </div>
+                  {/* Editor Content */}
+                  <div className="flex-1 p-6 font-mono text-sm text-slate-700 overflow-auto">
+                    {loadingFile ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+                      </div>
+                    ) : (
+                      <pre className="whitespace-pre-wrap leading-relaxed text-xs">{fileContent}</pre>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center mx-auto mb-4">
+                      <Code className="h-8 w-8 text-slate-500 opacity-70" />
+                    </div>
+                    <p className="text-slate-600 font-medium">Select a file to view its contents</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Deploy Button (when there are pending changes) */}
+          {pendingChanges.length > 0 && (
+            <div className="h-16 bg-white/40 backdrop-blur-md border-t border-white/50 px-6 flex items-center justify-between flex-shrink-0">
+              <p className="text-sm font-semibold text-slate-800">
+                {pendingChanges.length} change{pendingChanges.length > 1 ? "s" : ""} ready to deploy
+              </p>
+              <button
+                onClick={handleConfirmAndPush}
+                disabled={isDeploying}
+                className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                {isDeploying ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                Deploy to GitHub
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
