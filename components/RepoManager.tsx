@@ -277,7 +277,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
                 Create New Repository
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white/80 backdrop-blur-xl border border-white/60">
+            <DialogContent className="bg-white/90 backdrop-blur-xl border border-white/60">
               <DialogHeader>
                 <DialogTitle className="text-slate-800">Create New Repository</DialogTitle>
                 <DialogDescription className="text-slate-600">
@@ -295,7 +295,7 @@ export function RepoManager({ onSelect, disabled }: RepoManagerProps) {
                     value={newRepoName}
                     onChange={(e) => setNewRepoName(e.target.value)}
                     disabled={isCreating}
-                    className="bg-white/60 border-white/50"
+                    className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-slate-300"
                   />
                 </div>
               </div>
