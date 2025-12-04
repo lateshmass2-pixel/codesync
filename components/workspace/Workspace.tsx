@@ -63,8 +63,12 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   
-  // Vision state
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  // Vision state - supports both images and videos
+  const [selectedMedia, setSelectedMedia] = useState<{
+    data: string;
+    type: "image" | "video";
+    mimeType: string;
+  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Generation state
@@ -128,20 +132,46 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setSelectedFile(path)
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setSelectedImage(result)
+    if (!file) return
+
+    // Enforce 20MB limit for videos
+    const MAX_SIZE = 20 * 1024 * 1024 // 20MB in bytes
+    if (file.size > MAX_SIZE) {
+      alert(`File size exceeds 20MB limit. Please select a smaller file.`)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
       }
-      reader.readAsDataURL(file)
+      return
     }
+
+    // Determine media type
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+
+    if (!isImage && !isVideo) {
+      alert('Please select an image or video file.')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setSelectedMedia({
+        data: result,
+        type: isVideo ? "video" : "image",
+        mimeType: file.type
+      })
+    }
+    reader.readAsDataURL(file)
   }
 
-  const clearSelectedImage = () => {
-    setSelectedImage(null)
+  const clearSelectedMedia = () => {
+    setSelectedMedia(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -175,7 +205,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }, 4000)
 
     try {
-      const result = await generateCodeWithGemini(repoFullName, userMessage, selectedImage || undefined)
+      const result = await generateCodeWithGemini(
+        repoFullName, 
+        userMessage, 
+        selectedMedia 
+          ? { data: selectedMedia.data, mimeType: selectedMedia.mimeType }
+          : undefined
+      )
 
       setLogs(prev => [...prev, "✅ Code generated! Parsing JSON..."])
 
@@ -201,7 +237,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       setMessages([...newMessages, errorMessage])
     } finally {
       setIsSendingMessage(false)
-      setSelectedImage(null)
+      setSelectedMedia(null)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -432,20 +468,30 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
           {/* Input Area - Floating Glass Bar */}
           <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
-            {/* Image Preview */}
-            {selectedImage && (
+            {/* Media Preview */}
+            {selectedMedia && (
               <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <img 
-                    src={selectedImage} 
-                    alt="Selected" 
-                    className="h-12 w-12 object-cover rounded border border-white/60"
-                  />
+                  {selectedMedia.type === "image" ? (
+                    <img 
+                      src={selectedMedia.data} 
+                      alt="Selected" 
+                      className="h-12 w-12 object-cover rounded border border-white/60"
+                    />
+                  ) : (
+                    <video 
+                      src={selectedMedia.data}
+                      controls
+                      className="h-12 w-20 object-cover rounded border border-white/60"
+                    />
+                  )}
                   <div className="flex-1">
-                    <p className="text-xs text-slate-600 font-medium">Image attached</p>
+                    <p className="text-xs text-slate-600 font-medium">
+                      {selectedMedia.type === "image" ? "Image" : "Video"} attached
+                    </p>
                   </div>
                   <button
-                    onClick={clearSelectedImage}
+                    onClick={clearSelectedMedia}
                     className="p-1 rounded-full bg-red-100/80 hover:bg-red-200/80 text-red-600 transition-colors"
                   >
                     <X className="h-3 w-3" />
@@ -475,7 +521,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSendingMessage}
                 className="absolute bottom-3 left-3 p-2 rounded-xl bg-white/40 hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-all hover:shadow-md"
-                title="Upload image"
+                title="Upload image or video"
               >
                 <Paperclip className="h-4 w-4" />
               </button>
@@ -484,8 +530,8 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
+                accept="image/*,video/*"
+                onChange={handleMediaUpload}
                 className="hidden"
               />
               

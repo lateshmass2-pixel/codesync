@@ -1,9 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
+export async function generateCode(
+  userPrompt: string, 
+  fileContext: string, 
+  mediaData?: { data: string; mimeType: string }
+) {
   // ✅ FIX: Define modelName OUTSIDE the try block so it is visible in catch
-  const modelName = "gemini-2.5-flash";
+  const modelName = "gemini-2.0-flash-exp";
 
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -24,7 +28,10 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
     const textPrompt = `
       You are an expert Senior Developer.
       
-      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image deeply. Use it as the UI/UX reference.' : ''}
+      ${mediaData ? (mediaData.mimeType.startsWith('video/') 
+        ? 'VIDEO CONTEXT: Analyze the attached video deeply. Pay attention to motion, transitions, user interactions, and animations shown in the video. Replicate these dynamics in the code.' 
+        : 'IMAGE CONTEXT: Analyze the attached image deeply. Use it as the UI/UX reference.') 
+        : ''}
       
       FILE CONTEXT:
       ${fileContext}
@@ -49,12 +56,12 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
     
     contentParts.push(textPrompt);
     
-    // Add image if provided
-    if (imageData) {
+    // Add media (image or video) if provided
+    if (mediaData) {
       contentParts.push({
         inlineData: {
-          data: imageData.split(',')[1], 
-          mimeType: "image/png" 
+          data: mediaData.data.split(',')[1], // Remove data URL prefix
+          mimeType: mediaData.mimeType
         }
       });
     }
