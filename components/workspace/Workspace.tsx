@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye } from "lucide-react"
 
 import { 
   getFileTree, 
@@ -10,9 +10,19 @@ import {
   generateCodeWithGemini, 
   deployChanges 
 } from "@/app/actions/workspace"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { NavRail } from "./NavRail"
 import { ChatView } from "./ChatView"
 import { CodeView } from "./CodeView"
+import { CodeDiffViewer } from "./CodeDiffViewer"
 
 interface FileNode {
   name: string
@@ -65,6 +75,12 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     success: boolean
     message: string
   } | null>(null)
+
+  // Review modal state
+  const [showReview, setShowReview] = useState(false)
+  const [selectedDiffFile, setSelectedDiffFile] = useState<string | null>(null)
+  const [originalFileContent, setOriginalFileContent] = useState<string>("")
+  const [loadingOriginalContent, setLoadingOriginalContent] = useState(false)
 
   // Load file tree
   const loadFileTree = useCallback(async () => {
@@ -194,6 +210,71 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   const handleOpenReviewModal = () => {
     if (pendingChanges.length === 0) return
+    setShowReview(true)
+    if (pendingChanges.length > 0) {
+      setSelectedDiffFile(pendingChanges[0].path)
+    }
+  }
+
+  const loadOriginalContent = useCallback(
+    async (path: string, isNewFile: boolean) => {
+      if (isNewFile) {
+        setOriginalFileContent("")
+        return
+      }
+
+      setLoadingOriginalContent(true)
+
+      try {
+        const content = await getFileContent(repoFullName, path)
+        setOriginalFileContent(content || "")
+      } catch (err) {
+        console.error("Failed to load original content:", err)
+        setOriginalFileContent("")
+      } finally {
+        setLoadingOriginalContent(false)
+      }
+    },
+    [repoFullName]
+  )
+
+  useEffect(() => {
+    if (selectedDiffFile && showReview) {
+      const change = pendingChanges.find((c) => c.path === selectedDiffFile)
+      if (change) {
+        const isNewFile = change.type === "create"
+        loadOriginalContent(selectedDiffFile, isNewFile)
+      }
+    }
+  }, [selectedDiffFile, showReview, pendingChanges, loadOriginalContent])
+
+  const getLanguageFromFilename = (filename: string) => {
+    const ext = filename.split(".").pop()?.toLowerCase()
+    const languageMap: Record<string, string> = {
+      js: "javascript",
+      jsx: "javascript",
+      ts: "typescript",
+      tsx: "typescript",
+      py: "python",
+      java: "java",
+      cpp: "cpp",
+      c: "c",
+      cs: "csharp",
+      go: "go",
+      rs: "rust",
+      rb: "ruby",
+      php: "php",
+      html: "html",
+      css: "css",
+      scss: "scss",
+      json: "json",
+      xml: "xml",
+      yaml: "yaml",
+      yml: "yaml",
+      md: "markdown",
+      sh: "shell",
+    }
+    return languageMap[ext || ""] || "plaintext"
   }
 
   const handleConfirmAndPush = async () => {
@@ -211,6 +292,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           message: "Changes deployed successfully!",
         })
         setPendingChanges([])
+        setShowReview(false)
         await loadFileTree()
       } else {
         setDeployResult({
@@ -523,6 +605,122 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
           )}
         </div>
       </div>
+
+      {/* Review Changes Modal */}
+      <Dialog open={showReview} onOpenChange={setShowReview}>
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-4 bg-white/95 backdrop-blur-xl border border-white/60 z-[100]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-slate-800">Review Changes</DialogTitle>
+            <DialogDescription className="text-base text-slate-600">
+              Review the AI-generated changes before deploying to GitHub
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 flex gap-6 overflow-hidden">
+            {/* File List Sidebar */}
+            <div className="w-64 border border-slate-200 bg-slate-50/50 rounded-lg overflow-hidden flex flex-col">
+              <div className="bg-slate-100/80 px-4 py-3 border-b border-slate-200">
+                <p className="text-sm font-semibold text-slate-800">
+                  Changed Files ({pendingChanges.length})
+                </p>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-3 space-y-2">
+                  {pendingChanges.map((change) => (
+                    <div
+                      key={change.path}
+                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-slate-100 transition-colors ${
+                        selectedDiffFile === change.path
+                          ? "bg-slate-100 border-l-2 border-blue-500"
+                          : ""
+                      }`}
+                      onClick={() => setSelectedDiffFile(change.path)}
+                    >
+                      <div className={`h-4 w-4 mt-0.5 flex-shrink-0 rounded ${
+                        change.type === "create"
+                          ? "bg-green-500"
+                          : change.type === "delete"
+                            ? "bg-red-500"
+                            : "bg-blue-500"
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm break-all text-slate-800">{change.path}</p>
+                        <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          change.type === "create"
+                            ? "bg-green-100 text-green-700"
+                            : change.type === "delete"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {change.type === "create"
+                            ? "new"
+                            : change.type === "delete"
+                              ? "deleted"
+                              : "modified"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Diff Viewer */}
+            <div className="flex-1 border border-slate-200 bg-slate-50/50 rounded-lg overflow-hidden flex flex-col">
+              {selectedDiffFile ? (
+                <>
+                  <div className="bg-slate-100/80 px-4 py-3 border-b border-slate-200">
+                    <p className="text-sm font-medium text-slate-800">{selectedDiffFile}</p>
+                  </div>
+                  <div className="flex-1">
+                    <CodeDiffViewer
+                      originalContent={originalFileContent}
+                      modifiedContent={
+                        pendingChanges.find((c) => c.path === selectedDiffFile)
+                          ?.content || ""
+                      }
+                      language={getLanguageFromFilename(selectedDiffFile)}
+                      isLoading={loadingOriginalContent}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-8">
+                    <Eye className="mx-auto h-12 w-12 text-slate-400 mb-3" />
+                    <p className="mt-4 text-sm text-slate-600">
+                      Select a file to view the diff
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowReview(false)}
+              disabled={isDeploying}
+              className="border-slate-300 hover:bg-slate-50 text-slate-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAndPush}
+              disabled={isDeploying}
+              className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              {isDeploying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4" />
+              )}
+              Confirm & Push
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
