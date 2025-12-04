@@ -149,7 +149,7 @@ export async function getFileContent(repoFullName: string, path: string): Promis
 export async function generateCodeWithGemini(
   repoFullName: string,
   prompt: string,
-  imageData?: string
+  mediaData?: { data: string; mimeType: string }
 ): Promise<CodeGenerationResult> {
   const session = await auth()
 
@@ -226,7 +226,7 @@ export async function generateCodeWithGemini(
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
     // Generate code using Gemini
-    const result = await generateCode(prompt, fullContext, imageData)
+    const result = await generateCode(prompt, fullContext, mediaData)
     
     return result
   } catch (error) {
