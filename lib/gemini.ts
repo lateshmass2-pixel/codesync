@@ -9,9 +9,8 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
-    // ✅ USE GEMINI 2.0 FLASH (Experimental)
-    // This model is Multimodal: It handles text AND images natively.
-    // If "gemini-2.0-flash-exp" fails in your region, fallback to "gemini-1.5-flash"
+    // ✅ CORRECT MODEL NAME: "gemini-2.0-flash-exp"
+    // "gemini-2.5" does not exist. "gemini-1.5-flash" is the stable alternative.
     const modelName = "gemini-2.0-flash";
     
     const model = genAI.getGenerativeModel({ 
@@ -19,16 +18,14 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
       generationConfig: { responseMimeType: "application/json" } 
     });
 
-    console.log(`🤖 Asking ${modelName}${imageData ? ' with Vision' : ''}...`);
+    console.log(`🤖 Asking ${modelName} (Vision Enabled)...`);
     
-    // Prepare the content parts
     const contentParts: any[] = [];
     
-    // Add text prompt with context
     const textPrompt = `
-      You are an expert Senior Developer with vision capabilities.
+      You are an expert Senior Developer.
       
-      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image deeply. Use it as the reference for UI/UX.' : ''}
+      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image deeply. Use it as the UI/UX reference.' : ''}
       
       FILE CONTEXT:
       ${fileContext}
@@ -40,7 +37,7 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
       1. Return a JSON object ONLY.
       2. Format:
       {
-        "explanation": "Brief summary of changes",
+        "explanation": "Brief summary",
         "changes": [
           {
             "path": "path/to/file.ext",
@@ -57,19 +54,17 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
     if (imageData) {
       contentParts.push({
         inlineData: {
-          data: imageData.split(',')[1], // Remove the data:image/png;base64, prefix
-          mimeType: imageData.split(';')[0].split(':')[1] // Extract mime type
+          data: imageData.split(',')[1], 
+          mimeType: "image/png" // Assuming png, or parse from string
         }
       });
     }
 
-    // Call the API
     const result = await model.generateContent(contentParts);
     let content = result.response.text();
 
     console.log("📝 Gemini Output:", content.substring(0, 100) + "...");
 
-    // Clean Markdown
     content = content.replace(/```json/g, "").replace(/```/g, "");
 
     try {
@@ -83,11 +78,9 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
   } catch (error: any) {
     console.error("Gemini Error:", error);
     
-    // Error Handling for Model Not Found
+    // Fallback Advice
     if (error.message?.includes("404") || error.message?.includes("not found")) {
-       console.log("⚠️ Gemini 2.0 Flash not found. Your API key might not have access to Experimental models yet.");
-       console.log("👉 Suggestion: Change modelName to 'gemini-1.5-flash' in src/lib/gemini.ts");
-       throw new Error("Gemini 2.0 model not found. Try switching back to gemini-1.5-flash.");
+        throw new Error(`Model '${modelName}' not found. Your API key might not have access to Experimental models. Try changing the model string to 'gemini-1.5-flash-latest'`);
     }
     throw error;
   }

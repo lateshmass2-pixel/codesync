@@ -1,5 +1,6 @@
 "use client"
-
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
 
