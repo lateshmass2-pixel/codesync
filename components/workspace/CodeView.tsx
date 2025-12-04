@@ -5,11 +5,9 @@ import Editor from "@monaco-editor/react"
 import {
   Code,
   Loader2,
-  Folder,
-  File,
   Eye,
-  AlertCircle,
   GitCommit,
+  File as FileIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -24,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { getFileContent } from "@/app/actions/workspace"
 import { CodeDiffViewer } from "./CodeDiffViewer"
+import { FileTree } from "./FileTree"
 
 interface FileNode {
   name: string
@@ -147,28 +146,6 @@ export function CodeView({
     return languageMap[ext || ""] || "plaintext"
   }
 
-  const renderFileTree = (nodes: FileNode[], depth = 0) => {
-    return nodes.map((node) => (
-      <div key={node.path}>
-        <div
-          className={`flex items-center gap-2 px-2 py-1 hover:bg-white/10 cursor-pointer rounded transition-colors ${
-            selectedFile === node.path ? "bg-white/10 border-l-2 border-purple-500" : ""
-          }`}
-          style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          onClick={() => node.type === "file" && onSelectFile(node.path)}
-        >
-          {node.type === "dir" ? (
-            <Folder className="h-4 w-4 text-purple-400" />
-          ) : (
-            <File className="h-4 w-4 text-gray-400" />
-          )}
-          <span className="text-sm text-gray-200">{node.name}</span>
-        </div>
-        {node.children && renderFileTree(node.children, depth + 1)}
-      </div>
-    ))
-  }
-
   return (
     <>
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -177,15 +154,12 @@ export function CodeView({
           <div className="border-b border-white/10 p-4 flex-shrink-0">
             <h2 className="text-sm font-semibold text-white">Files</h2>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-              </div>
-            ) : (
-              renderFileTree(files)
-            )}
-          </div>
+          <FileTree
+            nodes={files}
+            selectedFile={selectedFile}
+            onSelectFile={onSelectFile}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Main Content Area - Code Editor */}
@@ -313,7 +287,7 @@ export function CodeView({
                       }`}
                       onClick={() => setSelectedDiffFile(change.path)}
                     >
-                      <File className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
+                      <FileIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm break-all text-gray-200">{change.path}</p>
                         <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
