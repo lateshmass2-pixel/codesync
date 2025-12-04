@@ -231,29 +231,21 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 flex items-center justify-center p-8">
-        <div className="bg-white/40 backdrop-blur-xl border border-white/60 rounded-2xl p-8 shadow-xl max-w-md mx-auto text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Error Loading Repository</h2>
-          <p className="text-sm text-slate-600">{error}</p>
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50">
+        <div className="text-center bg-white/60 backdrop-blur-xl border border-white/50 rounded-2xl p-8 shadow-lg">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+          <h2 className="mt-4 text-xl font-semibold text-slate-800">Error Loading Repository</h2>
+          <p className="mt-2 text-sm text-slate-600">{error}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 text-slate-800 font-sans flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="h-20 flex items-center justify-between px-8 bg-white/30 backdrop-blur-xl border-b border-white/50 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-            <Code className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800">{repoFullName}</h1>
-            <p className="text-xs text-slate-600 font-medium">AI-Powered Development Workspace</p>
-          </div>
-        </div>
+    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 text-slate-800 font-sans">
+      {/* Top-level layout with NavRail + View Container */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Navigation Rail */}
         <NavRail repoFullName={repoFullName} />
       </div>
 

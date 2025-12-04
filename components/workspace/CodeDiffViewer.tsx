@@ -18,8 +18,8 @@ export function CodeDiffViewer({
 }: CodeDiffViewerProps) {
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#1e1e1e]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex h-full items-center justify-center bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     )
   }
@@ -30,7 +30,7 @@ export function CodeDiffViewer({
       language={language}
       original={originalContent}
       modified={modifiedContent}
-      theme="vs-dark"
+      theme="vs-light"
       options={{
         readOnly: true,
         renderSideBySide: true,

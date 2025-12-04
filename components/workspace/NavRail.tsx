@@ -22,7 +22,7 @@ export function NavRail({ repoFullName }: NavRailProps) {
   }
 
   return (
-    <div className="w-16 border-r border-white/10 bg-white/5 backdrop-blur-md flex flex-col items-center py-4 gap-4 flex-shrink-0">
+    <div className="w-16 border-r border-white/40 bg-white/25 backdrop-blur-xl flex flex-col items-center py-4 gap-4 flex-shrink-0">
       {/* Chat View Button */}
       <Button
         variant={currentView === "chat" ? "default" : "ghost"}
@@ -30,10 +30,10 @@ export function NavRail({ repoFullName }: NavRailProps) {
         onClick={() => handleViewChange("chat")}
         title="Chat View"
         className={cn(
-          "h-10 w-10 rounded-lg transition-all duration-300",
+          "h-10 w-10 rounded-xl transition-all duration-300",
           currentView === "chat" 
-            ? "bg-gradient-to-r from-indigo-500 to-purple-500 hover:scale-105 shadow-lg shadow-purple-500/50" 
-            : "hover:bg-white/10 text-gray-400 hover:text-white"
+            ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:scale-105 shadow-md" 
+            : "hover:bg-white/30 text-slate-700 hover:text-slate-900"
         )}
       >
         <MessageSquare className="h-5 w-5" />
@@ -46,10 +46,10 @@ export function NavRail({ repoFullName }: NavRailProps) {
         onClick={() => handleViewChange("code")}
         title="Code View"
         className={cn(
-          "h-10 w-10 rounded-lg transition-all duration-300",
+          "h-10 w-10 rounded-xl transition-all duration-300",
           currentView === "code" 
-            ? "bg-gradient-to-r from-indigo-500 to-purple-500 hover:scale-105 shadow-lg shadow-purple-500/50" 
-            : "hover:bg-white/10 text-gray-400 hover:text-white"
+            ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:scale-105 shadow-md" 
+            : "hover:bg-white/30 text-slate-700 hover:text-slate-900"
         )}
       >
         <Code className="h-5 w-5" />
