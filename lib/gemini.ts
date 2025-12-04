@@ -3,7 +3,7 @@ import { jsonrepair } from "jsonrepair";
 
 export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
   // ✅ FIX: Define modelName OUTSIDE the try block so it is visible in catch
-  const modelName = "gemini-2.5-pro";
+  const modelName = "gemini-2.5-flash";
 
   try {
     if (!process.env.GEMINI_API_KEY) {
