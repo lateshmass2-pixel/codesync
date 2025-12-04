@@ -4,56 +4,14 @@ import * as React from "react"
 import { File, Folder, ChevronRight, ChevronDown, Loader2 } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { GitHubFile } from "@/lib/workspace/types"
 import { cn } from "@/lib/utils"
+import type { FileNode } from "@/lib/buildFileTree"
 
 interface FileTreeProps {
-  files: GitHubFile[]
+  nodes: FileNode[]
   selectedFile: string | null
   onSelectFile: (path: string) => void
   isLoading?: boolean
-}
-
-interface TreeNode {
-  name: string
-  path: string
-  type: "file" | "folder"
-  children?: TreeNode[]
-}
-
-function buildTree(files: GitHubFile[]): TreeNode[] {
-  const root: TreeNode[] = []
-
-  files.forEach((file) => {
-    const parts = file.path.split("/")
-    let currentLevel = root
-
-    parts.forEach((part, index) => {
-      const isFile = index === parts.length - 1
-      const existingNode = currentLevel.find((node) => node.name === part)
-
-      if (existingNode) {
-        if (!isFile && existingNode.children) {
-          currentLevel = existingNode.children
-        }
-      } else {
-        const newNode: TreeNode = {
-          name: part,
-          path: parts.slice(0, index + 1).join("/"),
-          type: isFile ? "file" : "folder",
-          children: isFile ? undefined : [],
-        }
-
-        currentLevel.push(newNode)
-
-        if (!isFile && newNode.children) {
-          currentLevel = newNode.children
-        }
-      }
-    })
-  })
-
-  return root
 }
 
 function TreeNodeComponent({
@@ -62,7 +20,7 @@ function TreeNodeComponent({
   selectedFile,
   onSelectFile,
 }: {
-  node: TreeNode
+  node: FileNode
   level?: number
   selectedFile: string | null
   onSelectFile: (path: string) => void
@@ -71,7 +29,7 @@ function TreeNodeComponent({
 
   const isSelected = node.type === "file" && selectedFile === node.path
 
-  if (node.type === "folder") {
+  if (node.type === "dir") {
     return (
       <div>
         <button
@@ -120,13 +78,11 @@ function TreeNodeComponent({
 }
 
 export function FileTree({
-  files,
+  nodes,
   selectedFile,
   onSelectFile,
   isLoading,
 }: FileTreeProps) {
-  const tree = React.useMemo(() => buildTree(files), [files])
-
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -135,7 +91,7 @@ export function FileTree({
     )
   }
 
-  if (files.length === 0) {
+  if (nodes.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-4">
         <p className="text-sm text-muted-foreground">No files found</p>
@@ -146,7 +102,7 @@ export function FileTree({
   return (
     <ScrollArea className="h-full">
       <div className="p-2">
-        {tree.map((node) => (
+        {nodes.map((node) => (
           <TreeNodeComponent
             key={node.path}
             node={node}
