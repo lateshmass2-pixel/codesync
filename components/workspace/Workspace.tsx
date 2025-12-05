@@ -54,9 +54,7 @@ const MODEL_OPTIONS = [
     label: "Gemini 2.0 Flash",
     helper: "Fast & Huge Context",
   },
-]
-
-type ModelOptionValue = (typeof MODEL_OPTIONS)[number]["value"]
+] as const
 
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
@@ -505,8 +503,31 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             )}
           </div>
 
+          {/* Model Selector - Above Input */}
+          <div className="flex-shrink-0 mx-4 mt-4 mb-2 flex items-center justify-between gap-4 px-4 py-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-xl">
+            <div>
+              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-600">Model</p>
+              <p className="text-[10px] text-slate-500 font-medium">{activeModelMeta.helper}</p>
+            </div>
+            <div className="relative w-52">
+              <select
+                value={modelProvider}
+                onChange={(event) => setModelProvider(event.target.value as "gemini" | "bytez")}
+                disabled={isSendingMessage}
+                className="w-full appearance-none bg-gray-900 border border-white/10 rounded-md text-xs px-3 py-1 pr-7 text-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {MODEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/70" />
+            </div>
+          </div>
+
           {/* Input Area - Floating Glass Bar */}
-          <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
+          <div className="flex-shrink-0 m-4 mt-0 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
             {/* Media Preview */}
             {selectedMedia && (
               <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
