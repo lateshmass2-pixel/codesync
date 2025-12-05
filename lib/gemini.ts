@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-export async function generateCode(
+export async function generateCodeWithGemini(
   userPrompt: string, 
   fileContext: string, 
   mediaData?: { data: string; mimeType: string }

@@ -2,7 +2,8 @@
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
-import { generateCode } from "@/lib/gemini"
+import { generateCodeWithGemini } from "@/lib/gemini"
+import { generateCodeWithClaude } from "@/lib/claude"
 
 interface FileNode {
   name: string
@@ -20,6 +21,8 @@ interface CodeGenerationResult {
     type?: "create" | "update" | "delete"
   }>
 }
+
+type ModelProvider = "gemini" | "claude"
 
 type GitCreateTreeParameters = RestEndpointMethodTypes["git"]["createTree"]["parameters"]
 
@@ -146,9 +149,10 @@ export async function getFileContent(repoFullName: string, path: string): Promis
   }
 }
 
-export async function generateCodeWithGemini(
+export async function generateCode(
   repoFullName: string,
   prompt: string,
+  modelProvider: ModelProvider,
   mediaData?: { data: string; mimeType: string }
 ): Promise<CodeGenerationResult> {
   const session = await auth()
@@ -225,8 +229,17 @@ export async function generateCodeWithGemini(
     // Combine both contexts
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
-    // Generate code using Gemini
-    const result = await generateCode(prompt, fullContext, mediaData)
+    let result: CodeGenerationResult
+    
+    switch (modelProvider) {
+      case "claude":
+        result = await generateCodeWithClaude(prompt, fullContext, mediaData)
+        break
+      case "gemini":
+      default:
+        result = await generateCodeWithGemini(prompt, fullContext, mediaData)
+        break
+    }
     
     return result
   } catch (error) {

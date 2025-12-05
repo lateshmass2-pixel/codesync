@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.1",
     "@auth/core": "^0.31.0",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.13.4",
