@@ -45,14 +45,14 @@ interface WorkspaceProps {
 
 const MODEL_OPTIONS = [
   {
-    value: "gemini" as const,
-    label: "Google Gemini 2.5 Pro",
-    helper: "Fast & Huge Context",
+    value: "bytez" as const,
+    label: "Claude Opus 4.1 (Bytez)",
+    helper: "Best for Coding",
   },
   {
-    value: "claude" as const,
-    label: "Claude Opus 4.5",
-    helper: "Best for Coding",
+    value: "gemini" as const,
+    label: "Gemini 2.0 Flash",
+    helper: "Fast & Huge Context",
   },
 ]
 
@@ -84,9 +84,9 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     type: "image" | "video";
     mimeType: string;
   } | null>(null)
-  const [selectedModel, setSelectedModel] = useState<ModelOptionValue>("gemini")
+  const [modelProvider, setModelProvider] = useState<ModelOptionValue>("bytez")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === selectedModel) ?? MODEL_OPTIONS[0]
+  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === modelProvider) ?? MODEL_OPTIONS[0]
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -225,7 +225,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       const result = await generateCode(
         repoFullName, 
         userMessage,
-        selectedModel,
+        modelProvider,
         selectedMedia 
           ? { data: selectedMedia.data, mimeType: selectedMedia.mimeType }
           : undefined
@@ -407,14 +407,14 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">Model</p>
               <div className="relative mt-1">
                 <select
-                  value={selectedModel}
-                  onChange={(event) => setSelectedModel(event.target.value as ModelOptionValue)}
+                  value={modelProvider}
+                  onChange={(event) => setModelProvider(event.target.value as ModelOptionValue)}
                   disabled={isSendingMessage}
-                  className="w-full appearance-none bg-white/70 border border-white/60 rounded-xl text-sm font-semibold text-slate-800 pr-10 pl-3 py-2 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full appearance-none bg-gray-900 border border-white/10 rounded-md text-xs px-3 py-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {MODEL_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label} — {option.helper}
+                      {option.label}
                     </option>
                   ))}
                 </select>
