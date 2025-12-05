@@ -1,9 +1,12 @@
 "use server"
+
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
-import { generateCodeWithGemini } from "@/lib/gemini"
-import { generateCodeWithClaude } from "@/lib/claude"
+import { generateCode as generateCodeWithGemini } from "@/lib/gemini"
+import { generateCodeWithBytez } from "@/lib/bytez" 
+
+// --- Types & Interfaces ---
 
 interface FileNode {
   name: string
@@ -22,9 +25,12 @@ interface CodeGenerationResult {
   }>
 }
 
-type ModelProvider = "gemini" | "claude"
+// ✅ UPDATED: Removed "claude" from the type definition
+export type ModelProvider = "gemini" | "bytez"
 
 type GitCreateTreeParameters = RestEndpointMethodTypes["git"]["createTree"]["parameters"]
+
+// --- Helper Functions ---
 
 export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
   const session = await auth()
@@ -44,12 +50,11 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
       recursive: "true" as any,
     })
 
-    // Build file tree structure
     const tree: FileNode[] = []
     const dirMap = new Map<string, FileNode>()
 
     data.tree.forEach((item) => {
-      if (!item.path) return // Skip items without paths
+      if (!item.path) return
       
       const parts = item.path.split("/")
       let currentLevel = tree
@@ -60,7 +65,6 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
         currentPath = currentPath ? `${currentPath}/${part}` : part
 
         if (i === parts.length - 1) {
-          // This is the final item (file or directory)
           const node: FileNode = {
             name: part,
             path: item.path,
@@ -74,9 +78,7 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
             const parentPath = parts.slice(0, i).join("/")
             const parentNode = dirMap.get(parentPath)
             if (parentNode) {
-              if (!parentNode.children) {
-                parentNode.children = []
-              }
+              if (!parentNode.children) parentNode.children = []
               parentNode.children.push(node)
             }
           }
@@ -85,7 +87,6 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
             dirMap.set(item.path, node)
           }
         } else {
-          // This is a directory path
           let existingNode = dirMap.get(currentPath)
           if (!existingNode) {
             existingNode = {
@@ -102,9 +103,7 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
               const parentPath = parts.slice(0, i).join("/")
               const parentNode = dirMap.get(parentPath)
               if (parentNode) {
-                if (!parentNode.children) {
-                  parentNode.children = []
-                }
+                if (!parentNode.children) parentNode.children = []
                 parentNode.children.push(existingNode)
               }
             }
@@ -149,10 +148,12 @@ export async function getFileContent(repoFullName: string, path: string): Promis
   }
 }
 
+// --- Main Actions ---
+
 export async function generateCode(
   repoFullName: string,
   prompt: string,
-  modelProvider: ModelProvider,
+  modelProvider: ModelProvider = "gemini", 
   mediaData?: { data: string; mimeType: string }
 ): Promise<CodeGenerationResult> {
   const session = await auth()
@@ -165,18 +166,24 @@ export async function generateCode(
     const octokit = new Octokit({ auth: session.accessToken })
     const [owner, repo] = repoFullName.split("/")
 
-    // Get file tree for context
+    // 1. Get File Tree
     const fileTree = await getFileTree(repoFullName)
     
-    // Collect key files with content
-    const keyFileExtensions = [".html", ".css", ".js", ".jsx", ".tsx", ".ts"]
+    // 2. Collect Content of Key Files
+    const keyFileExtensions = [".html", ".css", ".js", ".jsx", ".tsx", ".ts", ".json", ".md"]
+    const blockedFiles = ["package-lock.json", "yarn.lock"]
+    
     const allFiles: string[] = []
     
     const collectFiles = (nodes: FileNode[]) => {
       nodes.forEach((node) => {
         if (node.type === "file") {
           const ext = node.path.split('.').pop()?.toLowerCase()
-          if (ext && keyFileExtensions.some(keyExt => node.path.endsWith(keyExt))) {
+          if (
+            ext && 
+            keyFileExtensions.some(keyExt => node.path.endsWith(keyExt)) &&
+            !blockedFiles.some(blocked => node.path.includes(blocked))
+          ) {
             allFiles.push(node.path)
           }
         }
@@ -188,10 +195,10 @@ export async function generateCode(
     
     collectFiles(fileTree)
     
-    // Build file context with content
     let fileContextWithContent = ""
     
-    for (const filePath of allFiles) {
+    // Fetch content sequentially (limit to top 30 files)
+    for (const filePath of allFiles.slice(0, 30)) { 
       try {
         const { data } = await octokit.repos.getContent({
           owner,
@@ -205,11 +212,10 @@ export async function generateCode(
         }
       } catch (error) {
         console.warn(`Failed to fetch content for ${filePath}:`, error)
-        // Continue with other files if one fails
       }
     }
     
-    // Also add file tree structure for additional context
+    // 3. Build Context Tree String
     const buildFileTreeContext = (nodes: FileNode[], depth = 0): string => {
       let context = ""
       const indent = "  ".repeat(depth)
@@ -225,40 +231,31 @@ export async function generateCode(
     }
 
     const fileTreeContext = buildFileTreeContext(fileTree)
-    
-    // Combine both contexts
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
     let result: CodeGenerationResult
     
+    const imageString = mediaData ? `data:${mediaData.mimeType};base64,${mediaData.data}` : undefined;
+
+    // ✅ UPDATED: Switch logic only handles Gemini and Bytez
     switch (modelProvider) {
-      case "claude":
-        result = await generateCodeWithClaude(prompt, fullContext, mediaData)
+      case "bytez":
+        result = await generateCodeWithBytez(prompt, fullContext, imageString)
         break
       case "gemini":
       default:
-        result = await generateCodeWithGemini(prompt, fullContext, mediaData)
+        // Gemini handler usually takes the raw base64 data string, handled inside the lib function
+        result = await generateCodeWithGemini(prompt, fullContext, imageString)
         break
     }
     
     return result
   } catch (error) {
     console.error("Error generating code:", error)
-    throw new Error("Failed to generate code")
+    throw new Error(error instanceof Error ? error.message : "Failed to generate code")
   }
 }
 
-/**
- * Deploy code changes to GitHub using the Git Data API (atomic commits).
- * Handles three types of operations: create, update, and delete.
- * 
- * For creates/updates: Creates blobs with file content and references them in the tree.
- * For deletes: Adds tree entries with sha: null to remove files from the repository.
- * 
- * @param repoFullName - Repository in format "owner/repo"
- * @param changes - Array of changes with type: "create" | "update" | "delete"
- * @returns Success/error response
- */
 export async function deployChanges(
   repoFullName: string,
   changes: Array<{ path: string; content?: string; type?: "create" | "update" | "delete" }>
@@ -273,13 +270,12 @@ export async function deployChanges(
     const octokit = new Octokit({ auth: session.accessToken })
     const [owner, repo] = repoFullName.split("/")
 
-    // Get current commit SHA
+    // 1. Get latest commit SHA
     const { data: refData } = await octokit.git.getRef({
       owner,
       repo,
       ref: "heads/main",
     }).catch(async () => {
-      // Try default branch if main doesn't exist
       const { data: repoData } = await octokit.repos.get({ owner, repo })
       return octokit.git.getRef({
         owner,
@@ -290,14 +286,14 @@ export async function deployChanges(
 
     const currentCommitSha = refData.object.sha
 
-    // Get current commit to get tree SHA
+    // 2. Get base tree
     const { data: currentCommit } = await octokit.git.getCommit({
       owner,
       repo,
       commit_sha: currentCommitSha,
     })
 
-    // Build tree entries for all changes
+    // 3. Create Blobs & Tree Entries
     const treeEntries: Array<{
       path: string
       sha: string | null
@@ -306,12 +302,11 @@ export async function deployChanges(
     }> = []
 
     for (const change of changes) {
+      // Handle Deletions
       if (change.type === "delete") {
-        // For deletions: set sha to null to remove file from tree
-        // This is the Git Data API way of deleting files
         treeEntries.push({
           path: change.path,
-          sha: null,
+          sha: null, 
           mode: "100644",
           type: "blob",
         })
@@ -319,10 +314,11 @@ export async function deployChanges(
       }
 
       if (typeof change.content !== "string") {
-        throw new Error(`Missing content for change at ${change.path}`)
+        console.warn(`Skipping change for ${change.path} due to missing content`)
+        continue
       }
 
-      // For creates and updates: create a blob and reference it in the tree
+      // Handle Creates/Updates
       const { data } = await octokit.git.createBlob({
         owner,
         repo,
@@ -338,7 +334,7 @@ export async function deployChanges(
       })
     }
 
-    // Create new tree
+    // 4. Create Tree
     const { data: newTree } = await octokit.git.createTree({
       owner,
       repo,
@@ -346,23 +342,22 @@ export async function deployChanges(
       tree: treeEntries as unknown as GitCreateTreeParameters["tree"],
     })
 
-    // Create commit
+    // 5. Create Commit
     const { data: newCommit } = await octokit.git.createCommit({
       owner,
       repo,
-      message: "AI-generated changes via DevStudio",
+      message: "AI-generated changes via CodeSync",
       tree: newTree.sha,
       parents: [currentCommitSha],
     })
 
-    // Update reference
+    // 6. Update Reference (Push)
     await octokit.git.updateRef({
       owner,
       repo,
       ref: "heads/main",
       sha: newCommit.sha,
     }).catch(async () => {
-      // Try default branch if main doesn't exist
       const { data: repoData } = await octokit.repos.get({ owner, repo })
       return octokit.git.updateRef({
         owner,

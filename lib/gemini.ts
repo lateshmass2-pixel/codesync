@@ -1,13 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-export async function generateCodeWithGemini(
-  userPrompt: string, 
-  fileContext: string, 
-  mediaData?: { data: string; mimeType: string }
-) {
-  // ✅ FIX: Define modelName OUTSIDE the try block so it is visible in catch
-  const modelName = "gemini-2.5-pro";
+// ✅ Ensure "export async function generateCode" is here exactly like this
+export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
+  const modelName = "gemini-2.5-pro"; 
 
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -21,47 +17,26 @@ export async function generateCodeWithGemini(
       generationConfig: { responseMimeType: "application/json" } 
     });
 
-    console.log(`🤖 Asking ${modelName} (Vision Enabled)...`);
+    console.log(`🤖 Asking ${modelName}...`);
     
     const contentParts: any[] = [];
     
     const textPrompt = `
       You are an expert Senior Developer.
-      
-      ${mediaData ? (mediaData.mimeType.startsWith('video/') 
-        ? 'VIDEO CONTEXT: Analyze the attached video deeply. Pay attention to motion, transitions, user interactions, and animations shown in the video. Replicate these dynamics in the code.' 
-        : 'IMAGE CONTEXT: Analyze the attached image deeply. Use it as the UI/UX reference.') 
-        : ''}
-      
-      FILE CONTEXT:
-      ${fileContext}
-
-      INSTRUCTION:
-      ${userPrompt}
-
-      OUTPUT RULES:
-      1. Return a JSON object ONLY.
-      2. Format:
-      {
-        "explanation": "Brief summary",
-        "changes": [
-          {
-            "path": "path/to/file.ext",
-            "content": "Full code content",
-            "type": "create" | "update" | "delete"
-          }
-        ]
-      }
+      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image deeply.' : ''}
+      FILE CONTEXT: ${fileContext}
+      INSTRUCTION: ${userPrompt}
+      OUTPUT RULES: Return JSON object ONLY. 
+      Format: { "explanation": "string", "changes": [{ "path": "string", "content": "string", "type": "create" | "update" | "delete" }] }
     `;
     
     contentParts.push(textPrompt);
     
-    // Add media (image or video) if provided
-    if (mediaData) {
+    if (imageData) {
       contentParts.push({
         inlineData: {
-          data: mediaData.data.split(',')[1], // Remove data URL prefix
-          mimeType: mediaData.mimeType
+          data: imageData.split(',')[1], 
+          mimeType: "image/png" 
         }
       });
     }
@@ -83,10 +58,8 @@ export async function generateCodeWithGemini(
 
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    
-    // Fallback Advice
     if (error.message?.includes("404") || error.message?.includes("not found")) {
-        throw new Error(`Model '${modelName}' not found. Your API key might not have access to Experimental models. Try changing the model string to 'gemini-1.5-flash-latest'`);
+        throw new Error(`Model '${modelName}' not found. Check API key access.`);
     }
     throw error;
   }
