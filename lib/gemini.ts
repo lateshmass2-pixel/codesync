@@ -7,7 +7,7 @@ export async function generateCode(
   mediaData?: { data: string; mimeType: string }
 ) {
   // ✅ FIX: Define modelName OUTSIDE the try block so it is visible in catch
-  const modelName = "gemini-2.5-flash";
+  const modelName = "gemini-2.5-pro";
 
   try {
     if (!process.env.GEMINI_API_KEY) {
