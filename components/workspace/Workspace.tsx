@@ -82,7 +82,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     type: "image" | "video";
     mimeType: string;
   } | null>(null)
-  const [modelProvider, setModelProvider] = useState<"gemini" | "bytez">("bytez")
+  const [modelProvider, setModelProvider] = useState<ModelOptionValue>("bytez")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === modelProvider) ?? MODEL_OPTIONS[0]
 
@@ -400,9 +400,27 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
               <MessageSquare className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
-              <p className="text-xs text-slate-500 font-medium">Powered by {activeModelMeta.label}</p>
+            <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
+            <div className="ml-auto w-60">
+              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">Model</p>
+              <div className="relative mt-1">
+                <select
+                  value={modelProvider}
+                  onChange={(event) => setModelProvider(event.target.value as ModelOptionValue)}
+                  disabled={isSendingMessage}
+                  className="w-full appearance-none bg-gray-900 border border-white/10 rounded-md text-xs px-3 py-1 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {MODEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium mt-1">
+                {activeModelMeta.helper}
+              </p>
             </div>
           </div>
 
