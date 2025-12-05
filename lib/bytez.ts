@@ -1,13 +1,15 @@
 import { jsonrepair } from "jsonrepair";
 
-// ✅ Ensure this function name matches exactly what workspace.ts is importing
 export async function generateCodeWithBytez(userPrompt: string, fileContext: string, imageData?: string) {
   try {
     if (!process.env.BYTEZ_API_KEY) {
       throw new Error("Missing BYTEZ_API_KEY in .env.local");
     }
 
-    const modelId = "anthropic/claude-opus-4-1"; 
+    // ✅ FIX 1: Use a widely supported Model ID
+    // "claude-3-5-sonnet" is the current SOTA for coding.
+    const modelId = "openai/o3"; 
+    
     console.log(`🤖 Asking ${modelId} via Bytez...`);
 
     const systemMessage = {
@@ -31,20 +33,20 @@ export async function generateCodeWithBytez(userPrompt: string, fileContext: str
        userMessage.content += "\n\n[Image Context Provided]"; 
     }
 
-    const messages = [systemMessage, userMessage];
-
-    const response = await fetch(`https://api.bytez.com/model/${modelId}/run`, {
+    // ✅ FIX 2: Use the Standard OpenAI-Compatible Endpoint
+    // This is much safer than guessing the custom /run URL
+    const response = await fetch("https://api.bytez.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.BYTEZ_API_KEY}` 
+        "Authorization": `Bearer ${process.env.BYTEZ_API_KEY}`
       },
       body: JSON.stringify({
-        input: messages,
-        params: {
-          temperature: 0.1,
-          max_tokens: 4000
-        }
+        model: modelId, // Model goes here now
+        messages: [systemMessage, userMessage],
+        temperature: 0.1,
+        max_tokens: 4000,
+        response_format: { type: "json_object" } // Try forcing JSON mode
       })
     });
 
@@ -54,14 +56,16 @@ export async function generateCodeWithBytez(userPrompt: string, fileContext: str
     }
 
     const data = await response.json();
-    let content = data.output; 
-
-    // Formatting check
-    if (typeof content !== 'string') {
-        content = JSON.stringify(content);
-    }
     
-    console.log("📝 Bytez Output:", content?.substring(0, 100) + "...");
+    // ✅ FIX 3: Parse standard OpenAI-style response
+    let content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+        console.log("Full Response:", JSON.stringify(data, null, 2));
+        throw new Error("Bytez returned empty content");
+    }
+
+    console.log("📝 Bytez Output:", content.substring(0, 100) + "...");
 
     content = content.replace(/```json/g, "").replace(/```/g, "");
 
