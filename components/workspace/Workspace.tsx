@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye, ChevronDown } from "lucide-react"
 
 import { 
   getFileTree, 
   getFileContent,
-  generateCodeWithGemini, 
+  generateCode, 
   deployChanges 
 } from "@/app/actions/workspace"
 import { Button } from "@/components/ui/button"
@@ -43,6 +43,21 @@ interface WorkspaceProps {
   repo: string
 }
 
+const MODEL_OPTIONS = [
+  {
+    value: "gemini" as const,
+    label: "Google Gemini 2.5 Pro",
+    helper: "Fast & Huge Context",
+  },
+  {
+    value: "claude" as const,
+    label: "Claude Opus 4.5",
+    helper: "Best for Coding",
+  },
+]
+
+type ModelOptionValue = (typeof MODEL_OPTIONS)[number]["value"]
+
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
   const searchParams = useSearchParams()
@@ -69,7 +84,9 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     type: "image" | "video";
     mimeType: string;
   } | null>(null)
+  const [selectedModel, setSelectedModel] = useState<ModelOptionValue>("gemini")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === selectedModel) ?? MODEL_OPTIONS[0]
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -201,13 +218,14 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }, 2000)
     
     setTimeout(() => {
-      setLogs(prev => [...prev, "🧠 AI is analyzing logic..."])
+      setLogs(prev => [...prev, `🧠 ${activeModelMeta.label} is analyzing logic...`])
     }, 4000)
 
     try {
-      const result = await generateCodeWithGemini(
+      const result = await generateCode(
         repoFullName, 
-        userMessage, 
+        userMessage,
+        selectedModel,
         selectedMedia 
           ? { data: selectedMedia.data, mimeType: selectedMedia.mimeType }
           : undefined
@@ -385,6 +403,27 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
               <MessageSquare className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
+            <div className="ml-auto w-60">
+              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">Model</p>
+              <div className="relative mt-1">
+                <select
+                  value={selectedModel}
+                  onChange={(event) => setSelectedModel(event.target.value as ModelOptionValue)}
+                  disabled={isSendingMessage}
+                  className="w-full appearance-none bg-white/70 border border-white/60 rounded-xl text-sm font-semibold text-slate-800 pr-10 pl-3 py-2 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {MODEL_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} — {option.helper}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium mt-1">
+                {activeModelMeta.helper}
+              </p>
+            </div>
           </div>
 
           {/* Messages Area */}
