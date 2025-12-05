@@ -45,18 +45,16 @@ interface WorkspaceProps {
 
 const MODEL_OPTIONS = [
   {
-    value: "gemini" as const,
-    label: "Google Gemini 2.5 Pro",
-    helper: "Fast & Huge Context",
-  },
-  {
-    value: "claude" as const,
-    label: "Claude Opus 4.5",
+    value: "bytez" as const,
+    label: "Claude Opus 4.1 (Bytez)",
     helper: "Best for Coding",
   },
-]
-
-type ModelOptionValue = (typeof MODEL_OPTIONS)[number]["value"]
+  {
+    value: "gemini" as const,
+    label: "Gemini 2.0 Flash",
+    helper: "Fast & Huge Context",
+  },
+] as const
 
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
@@ -84,9 +82,9 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     type: "image" | "video";
     mimeType: string;
   } | null>(null)
-  const [selectedModel, setSelectedModel] = useState<ModelOptionValue>("gemini")
+  const [modelProvider, setModelProvider] = useState<"gemini" | "bytez">("bytez")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === selectedModel) ?? MODEL_OPTIONS[0]
+  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === modelProvider) ?? MODEL_OPTIONS[0]
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -225,7 +223,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       const result = await generateCode(
         repoFullName, 
         userMessage,
-        selectedModel,
+        modelProvider,
         selectedMedia 
           ? { data: selectedMedia.data, mimeType: selectedMedia.mimeType }
           : undefined
@@ -402,27 +400,9 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
               <MessageSquare className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
-            <div className="ml-auto w-60">
-              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-500">Model</p>
-              <div className="relative mt-1">
-                <select
-                  value={selectedModel}
-                  onChange={(event) => setSelectedModel(event.target.value as ModelOptionValue)}
-                  disabled={isSendingMessage}
-                  className="w-full appearance-none bg-white/70 border border-white/60 rounded-xl text-sm font-semibold text-slate-800 pr-10 pl-3 py-2 shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {MODEL_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label} — {option.helper}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium mt-1">
-                {activeModelMeta.helper}
-              </p>
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
+              <p className="text-xs text-slate-500 font-medium">Powered by {activeModelMeta.label}</p>
             </div>
           </div>
 
@@ -505,8 +485,31 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             )}
           </div>
 
+          {/* Model Selector - Above Input */}
+          <div className="flex-shrink-0 mx-4 mt-4 mb-2 flex items-center justify-between gap-4 px-4 py-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-xl">
+            <div>
+              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-600">Model</p>
+              <p className="text-[10px] text-slate-500 font-medium">{activeModelMeta.helper}</p>
+            </div>
+            <div className="relative w-52">
+              <select
+                value={modelProvider}
+                onChange={(event) => setModelProvider(event.target.value as "gemini" | "bytez")}
+                disabled={isSendingMessage}
+                className="w-full appearance-none bg-gray-900 border border-white/10 rounded-md text-xs px-3 py-1 pr-7 text-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {MODEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/70" />
+            </div>
+          </div>
+
           {/* Input Area - Floating Glass Bar */}
-          <div className="flex-shrink-0 m-4 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
+          <div className="flex-shrink-0 m-4 mt-0 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
             {/* Media Preview */}
             {selectedMedia && (
               <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
