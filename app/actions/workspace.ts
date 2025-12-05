@@ -3,6 +3,7 @@ import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
 import { generateCode } from "@/lib/gemini"
+import { generateCodeWithClaude } from "@/lib/claude"
 
 interface FileNode {
   name: string
@@ -149,6 +150,7 @@ export async function getFileContent(repoFullName: string, path: string): Promis
 export async function generateCodeWithGemini(
   repoFullName: string,
   prompt: string,
+  modelProvider: "gemini" | "claude" = "gemini",
   mediaData?: { data: string; mimeType: string }
 ): Promise<CodeGenerationResult> {
   const session = await auth()
@@ -225,8 +227,19 @@ export async function generateCodeWithGemini(
     // Combine both contexts
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
-    // Generate code using Gemini
-    const result = await generateCode(prompt, fullContext, mediaData)
+    // Generate code using selected model provider
+    let result
+    
+    switch (modelProvider) {
+      case "gemini":
+        result = await generateCode(prompt, fullContext, mediaData)
+        break
+      case "claude":
+        result = await generateCodeWithClaude(prompt, fullContext, mediaData)
+        break
+      default:
+        throw new Error(`Unsupported model provider: ${modelProvider}`)
+    }
     
     return result
   } catch (error) {
