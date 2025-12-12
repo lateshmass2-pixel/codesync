@@ -1,10 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { jsonrepair } from "jsonrepair";
 
-// ✅ Ensure "export async function generateCode" is here exactly like this
-export async function generateCode(userPrompt: string, fileContext: string, imageData?: string) {
-  const modelName = "gemini-2.5-pro"; 
-
+export async function generateCode(userPrompt: string, fileContext: string, mediaData?: string) {
   try {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error("Missing GEMINI_API_KEY in .env.local");
@@ -12,31 +9,60 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
+    // ✅ FIX 1: Use the correct Experimental Model for Video
+    // "gemini-2.5" does not exist. Use 2.0 Flash Experimental.
+    const modelName = "gemini-2.5-flash";
+    
     const model = genAI.getGenerativeModel({ 
       model: modelName, 
       generationConfig: { responseMimeType: "application/json" } 
     });
 
-    console.log(`🤖 Asking ${modelName}...`);
+    console.log(`🤖 Asking ${modelName} (Media Enabled)...`);
     
     const contentParts: any[] = [];
     
     const textPrompt = `
       You are an expert Senior Developer.
-      ${imageData ? 'IMAGE CONTEXT: Analyze the attached image deeply.' : ''}
-      FILE CONTEXT: ${fileContext}
-      INSTRUCTION: ${userPrompt}
-      OUTPUT RULES: Return JSON object ONLY. 
-      Format: { "explanation": "string", "changes": [{ "path": "string", "content": "string", "type": "create" | "update" | "delete" }] }
+      
+      ${mediaData ? 'MEDIA CONTEXT: Analyze the attached image or video frame-by-frame. Replicate the layout, motion, and aesthetics exactly.' : ''}
+      
+      FILE CONTEXT:
+      ${fileContext}
+
+      INSTRUCTION:
+      ${userPrompt}
+
+      OUTPUT RULES:
+      1. Return a JSON object ONLY.
+      2. Format:
+      {
+        "explanation": "Brief summary",
+        "changes": [
+          {
+            "path": "path/to/file.ext",
+            "content": "Full code content",
+            "type": "create" | "update" | "delete"
+          }
+        ]
+      }
     `;
     
     contentParts.push(textPrompt);
     
-    if (imageData) {
+    // ✅ FIX 2: Dynamic Media Handling (Video & Image)
+    if (mediaData) {
+      // 1. Extract the MIME type (e.g., "video/mp4" or "image/png")
+      const mimeTypeMatch = mediaData.match(/^data:(.*?);base64,/);
+      const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/png"; // Default to png if unknown
+
+      // 2. Clean the Base64 string (Remove the "data:video/mp4;base64," prefix)
+      const cleanBase64 = mediaData.replace(/^data:.*?;base64,/, "");
+
       contentParts.push({
         inlineData: {
-          data: imageData.split(',')[1], 
-          mimeType: "image/png" 
+          data: cleanBase64, 
+          mimeType: mimeType 
         }
       });
     }
@@ -58,8 +84,8 @@ export async function generateCode(userPrompt: string, fileContext: string, imag
 
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    if (error.message?.includes("404") || error.message?.includes("not found")) {
-        throw new Error(`Model '${modelName}' not found. Check API key access.`);
+    if (error.message?.includes("404")) {
+        throw new Error(`Model '${modelName}' not found. Your API Key might not have access to Experimental models yet.`);
     }
     throw error;
   }
