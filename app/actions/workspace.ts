@@ -3,8 +3,7 @@
 import { Octokit } from "@octokit/rest"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { auth } from "@/auth"
-import { generateCode as generateCodeWithGemini } from "@/lib/gemini"
-import { generateCodeWithBytez } from "@/lib/bytez" 
+import { generateCode as generateCodeWithGemini } from "@/lib/gemini" 
 
 // --- Types & Interfaces ---
 
@@ -25,8 +24,8 @@ interface CodeGenerationResult {
   }>
 }
 
-// ✅ UPDATED: Removed "claude" from the type definition
-export type ModelProvider = "gemini" | "bytez"
+// Simplified to only use Gemini
+export type ModelProvider = "gemini"
 
 type GitCreateTreeParameters = RestEndpointMethodTypes["git"]["createTree"]["parameters"]
 
@@ -153,7 +152,6 @@ export async function getFileContent(repoFullName: string, path: string): Promis
 export async function generateCode(
   repoFullName: string,
   prompt: string,
-  modelProvider: ModelProvider = "gemini", 
   mediaData?: { data: string; mimeType: string }
 ): Promise<CodeGenerationResult> {
   const session = await auth()
@@ -233,21 +231,10 @@ export async function generateCode(
     const fileTreeContext = buildFileTreeContext(fileTree)
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
-    let result: CodeGenerationResult
-    
     const imageString = mediaData ? `data:${mediaData.mimeType};base64,${mediaData.data}` : undefined;
 
-    // ✅ UPDATED: Switch logic only handles Gemini and Bytez
-    switch (modelProvider) {
-      case "bytez":
-        result = await generateCodeWithBytez(prompt, fullContext, imageString)
-        break
-      case "gemini":
-      default:
-        // Gemini handler usually takes the raw base64 data string, handled inside the lib function
-        result = await generateCodeWithGemini(prompt, fullContext, imageString)
-        break
-    }
+    // Directly call Gemini code generation
+    const result = await generateCodeWithGemini(prompt, fullContext, imageString)
     
     return result
   } catch (error) {

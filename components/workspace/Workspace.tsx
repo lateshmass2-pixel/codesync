@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye, ChevronDown } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye } from "lucide-react"
 
 import { 
   getFileTree, 
@@ -43,18 +43,7 @@ interface WorkspaceProps {
   repo: string
 }
 
-const MODEL_OPTIONS = [
-  {
-    value: "bytez" as const,
-    label: "Claude Opus 4.1 (Bytez)",
-    helper: "Best for Coding",
-  },
-  {
-    value: "gemini" as const,
-    label: "Gemini 2.0 Flash",
-    helper: "Fast & Huge Context",
-  },
-] as const
+// Simplified to only use Gemini
 
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
@@ -82,9 +71,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     type: "image" | "video";
     mimeType: string;
   } | null>(null)
-  const [modelProvider, setModelProvider] = useState<"gemini" | "bytez">("bytez")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const activeModelMeta = MODEL_OPTIONS.find((option) => option.value === modelProvider) ?? MODEL_OPTIONS[0]
 
   // Generation state
   const [logs, setLogs] = useState<string[]>([])
@@ -216,14 +203,13 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     }, 2000)
     
     setTimeout(() => {
-      setLogs(prev => [...prev, `🧠 ${activeModelMeta.label} is analyzing logic...`])
+      setLogs(prev => [...prev, `🧠 Gemini is analyzing logic...`])
     }, 4000)
 
     try {
       const result = await generateCode(
         repoFullName, 
         userMessage,
-        modelProvider,
         selectedMedia 
           ? { data: selectedMedia.data, mimeType: selectedMedia.mimeType }
           : undefined
@@ -402,7 +388,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
-              <p className="text-xs text-slate-500 font-medium">Powered by {activeModelMeta.label}</p>
+              <p className="text-xs text-slate-500 font-medium">Powered by Gemini</p>
             </div>
           </div>
 
@@ -483,29 +469,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Model Selector - Above Input */}
-          <div className="flex-shrink-0 mx-4 mt-4 mb-2 flex items-center justify-between gap-4 px-4 py-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-xl">
-            <div>
-              <p className="text-[11px] uppercase tracking-widest font-semibold text-slate-600">Model</p>
-              <p className="text-[10px] text-slate-500 font-medium">{activeModelMeta.helper}</p>
-            </div>
-            <div className="relative w-52">
-              <select
-                value={modelProvider}
-                onChange={(event) => setModelProvider(event.target.value as "gemini" | "bytez")}
-                disabled={isSendingMessage}
-                className="w-full appearance-none bg-gray-900 border border-white/10 rounded-md text-xs px-3 py-1 pr-7 text-white focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {MODEL_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-white/70" />
-            </div>
           </div>
 
           {/* Input Area - Floating Glass Bar */}
