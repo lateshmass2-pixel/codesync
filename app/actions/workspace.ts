@@ -113,8 +113,26 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
     })
 
     return tree
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching file tree:", error)
+    console.log(`Failed to fetch file tree for ${repoFullName}.`)
+    
+    if (error?.status) {
+      console.error(`Status: ${error.status}`)
+    }
+    if (error?.message) {
+      console.error(`Message: ${error.message}`)
+    }
+
+    // Handle empty repositories (409 Conflict or 404 Not Found with specific message)
+    if (
+      error.status === 409 ||
+      (error.status === 404 && error.message?.toLowerCase().includes("empty"))
+    ) {
+      console.log("Empty repository detected. Returning empty file tree.")
+      return []
+    }
+
     throw new Error("Failed to fetch file tree")
   }
 }
