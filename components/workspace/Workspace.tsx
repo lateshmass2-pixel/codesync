@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { useSearchParams } from "next/navigation"
-import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Eye } from "lucide-react"
+import { AlertCircle, Send, Loader2, Code, MessageSquare, CheckCircle, XCircle, Paperclip, X, Settings, History, FileText } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { 
   getFileTree, 
@@ -10,7 +10,6 @@ import {
   generateCode, 
   deployChanges 
 } from "@/app/actions/workspace"
-import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -19,10 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { NavRail } from "./NavRail"
-import { ChatView } from "./ChatView"
-import { CodeView } from "./CodeView"
 import { CodeDiffViewer } from "./CodeDiffViewer"
+import { FileTree } from "./FileTree"
 
 interface FileNode {
   name: string
@@ -43,29 +40,26 @@ interface WorkspaceProps {
   repo: string
 }
 
-// Simplified to only use Gemini
-
 export function Workspace({ owner, repo }: WorkspaceProps) {
   const repoFullName = `${owner}/${repo}`
-  const searchParams = useSearchParams()
-  const currentView = (searchParams.get("view") as "chat" | "code") || "chat"
   
   // File explorer state
   const [files, setFiles] = useState<FileNode[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showFileExplorer, setShowFileExplorer] = useState(false)
   
   // Code view state
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>("")
   const [loadingFile, setLoadingFile] = useState(false)
 
-  // Chat state - persists across view switches
+  // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   
-  // Vision state - supports both images and videos
+  // Vision state
   const [selectedMedia, setSelectedMedia] = useState<{
     data: string;
     type: "image" | "video";
@@ -90,7 +84,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   // Load file tree
   const loadFileTree = useCallback(async () => {
-    setIsLoading(true)
+    setIsLoadingFiles(true)
     setError(null)
     
     try {
@@ -99,7 +93,7 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load repository")
     } finally {
-      setIsLoading(false)
+      setIsLoadingFiles(false)
     }
   }, [repoFullName])
 
@@ -132,14 +126,14 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   const handleSelectFile = (path: string) => {
     setSelectedFile(path)
+    setShowFileExplorer(false)
   }
 
   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Enforce 20MB limit for videos
-    const MAX_SIZE = 20 * 1024 * 1024 // 20MB in bytes
+    const MAX_SIZE = 20 * 1024 * 1024
     if (file.size > MAX_SIZE) {
       alert(`File size exceeds 20MB limit. Please select a smaller file.`)
       if (fileInputRef.current) {
@@ -148,7 +142,6 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
       return
     }
 
-    // Determine media type
     const isImage = file.type.startsWith('image/')
     const isVideo = file.type.startsWith('video/')
 
@@ -188,22 +181,20 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
     setDeployResult(null)
     setLogs([])
 
-    // Add user message to chat
     const newMessages: ChatMessage[] = [
       ...messages,
       { role: "user", content: userMessage },
     ]
     setMessages(newMessages)
 
-    // Progress Simulation
     setLogs(prev => [...prev, "🚀 Connecting to Repository..."])
     
     setTimeout(() => {
-      setLogs(prev => [...prev, "📖 Reading file contents (index.html, style.css)..."])
+      setLogs(prev => [...prev, "📖 Reading file contents..."])
     }, 2000)
     
     setTimeout(() => {
-      setLogs(prev => [...prev, `🧠 Gemini is analyzing logic...`])
+      setLogs(prev => [...prev, `🧠 AI is analyzing logic...`])
     }, 4000)
 
     try {
@@ -351,424 +342,407 @@ export function Workspace({ owner, repo }: WorkspaceProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 flex items-center justify-center p-8">
-        <div className="bg-white/40 backdrop-blur-xl border border-white/60 rounded-2xl p-8 shadow-xl max-w-md mx-auto text-center">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-neutral-950 flex items-center justify-center p-8"
+      >
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="bg-neutral-900/50 border border-neutral-800 rounded-2xl p-8 shadow-2xl max-w-md mx-auto text-center backdrop-blur-sm"
+        >
           <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Error Loading Repository</h2>
-          <p className="text-sm text-slate-600">{error}</p>
-        </div>
-      </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Error Loading Repository</h2>
+          <p className="text-sm text-neutral-400">{error}</p>
+        </motion.div>
+      </motion.div>
     )
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-rose-50 via-sky-50 to-indigo-50 text-slate-800 font-sans flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="h-20 flex items-center justify-between px-8 bg-white/30 backdrop-blur-xl border-b border-white/50 flex-shrink-0">
+    <div className="h-screen w-full bg-neutral-950 text-white flex flex-col overflow-hidden">
+      {/* Top Navigation Bar */}
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="h-16 border-b border-neutral-800/50 bg-neutral-900/30 backdrop-blur-xl flex items-center justify-between px-6 flex-shrink-0"
+      >
         <div className="flex items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
-            <Code className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800">{repoFullName}</h1>
-            <p className="text-xs text-slate-600 font-medium">AI-Powered Development Workspace</p>
-          </div>
+          <motion.div 
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center gap-2"
+          >
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Code className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-sm font-semibold text-white">{repoFullName}</h1>
+              <p className="text-xs text-neutral-500 font-medium">AI Workspace</p>
+            </div>
+          </motion.div>
         </div>
-        <NavRail repoFullName={repoFullName} />
-      </div>
 
-      {/* Main Content - Glass Panels */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-        {/* Chat Panel - Frosted Glass Pane */}
-        <div className="w-[40%] h-full flex flex-col border border-white/50 bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
-          {/* Chat Header */}
-          <div className="h-16 flex items-center gap-2 px-6 border-b border-white/60 bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-sm flex-shrink-0">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-300 to-blue-400 flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">AI Assistant</h2>
-              <p className="text-xs text-slate-500 font-medium">Powered by Gemini</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowFileExplorer(!showFileExplorer)}
+            className="h-9 w-9 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 flex items-center justify-center transition-colors"
+            title="Toggle File Explorer"
+          >
+            <FileText className="h-4 w-4 text-neutral-400" />
+          </motion.button>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {messages.length === 0 ? (
-              <div className="text-center py-16 flex flex-col items-center justify-center h-full">
-                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mb-4">
-                  <MessageSquare className="h-8 w-8 text-slate-400" />
-                </div>
-                <p className="text-slate-600 font-medium">Start a conversation with the AI assistant</p>
-                <p className="text-sm text-slate-500 mt-2">Ask me to help you build or modify your project</p>
-              </div>
-            ) : (
-              messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="h-9 w-9 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 flex items-center justify-center transition-colors"
+            title="History"
+          >
+            <History className="h-4 w-4 text-neutral-400" />
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="h-9 w-9 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 flex items-center justify-center transition-colors"
+            title="Settings"
+          >
+            <Settings className="h-4 w-4 text-neutral-400" />
+          </motion.button>
+        </div>
+      </motion.header>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex gap-0 overflow-hidden relative">
+        {/* File Explorer Drawer */}
+        <AnimatePresence>
+          {showFileExplorer && (
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-64 border-r border-neutral-800/50 bg-neutral-900/50 backdrop-blur-xl flex flex-col"
+            >
+              <div className="h-14 border-b border-neutral-800/50 flex items-center justify-between px-4 flex-shrink-0">
+                <h2 className="text-sm font-semibold text-white">Files</h2>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowFileExplorer(false)}
+                  className="p-1 hover:bg-neutral-800/50 rounded transition-colors"
                 >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-md ${
-                      message.role === "user"
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-br-none shadow-lg"
-                        : message.role === "system"
-                        ? "bg-red-100/70 backdrop-blur-sm text-red-700 border border-red-200/80 rounded-bl-none"
-                        : "bg-white/70 backdrop-blur-md text-slate-800 border border-white/60 rounded-bl-none shadow-sm"
-                    }`}
+                  <X className="h-4 w-4 text-neutral-500" />
+                </motion.button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <FileTree
+                  nodes={files}
+                  selectedFile={selectedFile}
+                  onSelectFile={handleSelectFile}
+                  isLoading={isLoadingFiles}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Main Chat Area */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          {/* Chat Messages Container */}
+          <div className="flex-1 overflow-y-auto px-4 py-8 flex flex-col items-center">
+            <div className="w-full max-w-2xl flex flex-col gap-6 h-full">
+              {messages.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="h-full flex flex-col items-center justify-center text-center py-16"
+                >
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                    className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 flex items-center justify-center mb-6"
                   >
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                  </div>
-                </div>
-              ))
-            )}
-
-            {/* Terminal Logs */}
-            {logs.length > 0 && (
-              <div className="bg-slate-950/60 backdrop-blur-sm border border-slate-700/70 rounded-xl p-4 text-green-300 font-mono text-xs space-y-1 shadow-lg">
-                {logs.map((log, index) => (
-                  <div key={index} className="font-medium">{log}</div>
-                ))}
-              </div>
-            )}
-
-            {/* Deployment Result */}
-            {deployResult && (
-              <div className={`rounded-2xl p-4 border shadow-lg backdrop-blur-sm ${
-                deployResult.success
-                  ? "bg-emerald-100/70 border-emerald-300/80 text-emerald-800"
-                  : "bg-red-100/70 border-red-300/80 text-red-800"
-              }`}>
-                <div className="flex items-center gap-3">
-                  {deployResult.success ? (
-                    <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="h-5 w-5 flex-shrink-0" />
-                  )}
-                  <p className="text-sm font-semibold">{deployResult.message}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Pending Changes Banner */}
-            {pendingChanges.length > 0 && (
-              <div className="bg-amber-100/70 backdrop-blur-sm border border-amber-300/80 rounded-2xl p-4 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-amber-900">
-                      {pendingChanges.length} pending change{pendingChanges.length > 1 ? "s" : ""} ready
-                    </p>
-                    <p className="text-xs text-amber-800 mt-1 font-medium">Review and deploy to repository</p>
-                  </div>
-                  <button
-                    onClick={handleOpenReviewModal}
-                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105"
-                  >
-                    Review
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input Area - Floating Glass Bar */}
-          <div className="flex-shrink-0 m-4 mt-0 p-1 bg-white/60 backdrop-blur-lg border border-white/50 rounded-2xl shadow-lg">
-            {/* Media Preview */}
-            {selectedMedia && (
-              <div className="mx-4 mt-3 mb-2 p-2 bg-white/40 backdrop-blur-sm border border-white/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  {selectedMedia.type === "image" ? (
-                    <img 
-                      src={selectedMedia.data} 
-                      alt="Selected" 
-                      className="h-12 w-12 object-cover rounded border border-white/60"
-                    />
-                  ) : (
-                    <video 
-                      src={selectedMedia.data}
-                      controls
-                      className="h-12 w-20 object-cover rounded border border-white/60"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-xs text-slate-600 font-medium">
-                      {selectedMedia.type === "image" ? "Image" : "Video"} attached
-                    </p>
-                  </div>
-                  <button
-                    onClick={clearSelectedMedia}
-                    className="p-1 rounded-full bg-red-100/80 hover:bg-red-200/80 text-red-600 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex gap-2 relative">
-              <textarea
-                rows={3}
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask the AI to help you build something..."
-                className="flex-1 resize-none bg-transparent focus:ring-0 focus:outline-none px-5 py-3 text-slate-800 placeholder-slate-500 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-                disabled={isSendingMessage}
-              />
-              
-              {/* Upload Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSendingMessage}
-                className="absolute bottom-3 left-3 p-2 rounded-xl bg-white/40 hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 transition-all hover:shadow-md"
-                title="Upload image or video"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
-              
-              {/* Hidden File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleMediaUpload}
-                className="hidden"
-              />
-              
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || isSendingMessage}
-                className="absolute bottom-3 right-3 p-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-500 hover:to-blue-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center"
-              >
-                {isSendingMessage ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Code Panel - Slightly Less Opaque Glass Pane */}
-        <div className="flex-1 h-full flex flex-col border border-white/50 bg-white/40 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden">
-          {/* Code Header */}
-          <div className="h-16 flex items-center justify-between px-6 border-b border-white/60 bg-white/20 backdrop-blur-sm flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-300 to-teal-400 flex items-center justify-center">
-                <Code className="h-5 w-5 text-white" />
-              </div>
-              <h2 className="text-base font-semibold text-slate-800">Code Editor</h2>
-            </div>
-            {selectedFile && (
-              <div className="text-sm text-slate-600 font-medium bg-white/40 px-3 py-1 rounded-lg border border-white/50">
-                {selectedFile}
-              </div>
-            )}
-          </div>
-
-          {/* File Tree + Editor */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* File Tree Sidebar */}
-            <div className="w-64 bg-white/30 border-r border-white/50 overflow-y-auto flex-shrink-0">
-              <div className="p-5">
-                <h3 className="text-sm font-bold text-slate-800 mb-4">Files</h3>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {files.map((file) => (
-                      <div
-                        key={file.path}
-                        onClick={() => handleSelectFile(file.path)}
-                        className={`px-3 py-2 rounded-lg cursor-pointer transition-all text-sm font-medium ${
-                          selectedFile === file.path
-                            ? "bg-gradient-to-r from-blue-300/70 to-indigo-300/70 text-blue-900 shadow-md border border-blue-400/60"
-                            : "text-slate-700 hover:bg-white/50 border border-transparent hover:border-white/40"
+                    <MessageSquare className="h-8 w-8 text-blue-400" />
+                  </motion.div>
+                  <h2 className="text-xl font-semibold text-white mb-2">Start Building</h2>
+                  <p className="text-sm text-neutral-400 max-w-xs">
+                    Describe what you want to build or modify. I'll analyze your repository and generate code changes.
+                  </p>
+                </motion.div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {messages.map((message, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ duration: 0.2 }}
+                        className={`max-w-xl rounded-2xl px-5 py-3 ${
+                          message.role === "user"
+                            ? "bg-blue-600 text-white rounded-br-none shadow-lg shadow-blue-600/30"
+                            : message.role === "system"
+                            ? "bg-red-900/30 text-red-200 border border-red-800/50 rounded-bl-none"
+                            : "bg-neutral-800/50 text-white border border-neutral-700/50 rounded-bl-none backdrop-blur-sm"
                         }`}
                       >
-                        {file.name}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      </motion.div>
+                    </motion.div>
+                  ))}
 
-            {/* Monaco Editor Area */}
-            <div className="flex-1 bg-white/10 backdrop-blur-sm relative flex flex-col">
-              {selectedFile ? (
-                <>
-                  {/* File Tab */}
-                  <div className="h-10 bg-white/20 border-b border-white/40 flex items-center px-5 flex-shrink-0">
-                    <span className="text-sm text-slate-700 font-medium">{selectedFile}</span>
-                  </div>
-                  {/* Editor Content */}
-                  <div className="flex-1 p-6 font-mono text-sm text-slate-700 overflow-auto">
-                    {loadingFile ? (
-                      <div className="flex items-center justify-center h-full">
-                        <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+                  {/* Logs */}
+                  {logs.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-neutral-900/50 border border-neutral-800/50 rounded-xl p-4 text-green-400 text-xs space-y-1 backdrop-blur-sm font-medium"
+                    >
+                      {logs.map((log, index) => (
+                        <div key={index}>{log}</div>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {/* Deployment Result */}
+                  {deployResult && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`rounded-xl p-4 border ${
+                        deployResult.success
+                          ? "bg-emerald-900/30 border-emerald-800/50 text-emerald-200"
+                          : "bg-red-900/30 border-red-800/50 text-red-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {deployResult.success ? (
+                          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                        ) : (
+                          <XCircle className="h-5 w-5 flex-shrink-0" />
+                        )}
+                        <p className="text-sm font-semibold">{deployResult.message}</p>
                       </div>
-                    ) : (
-                      <pre className="whitespace-pre-wrap leading-relaxed text-xs">{fileContent}</pre>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center mx-auto mb-4">
-                      <Code className="h-8 w-8 text-slate-500 opacity-70" />
-                    </div>
-                    <p className="text-slate-600 font-medium">Select a file to view its contents</p>
-                  </div>
+                    </motion.div>
+                  )}
+
+                  {/* Pending Changes Banner */}
+                  {pendingChanges.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-blue-900/30 border border-blue-800/50 rounded-xl p-4 backdrop-blur-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-blue-200">
+                            {pendingChanges.length} pending change{pendingChanges.length > 1 ? "s" : ""}
+                          </p>
+                          <p className="text-xs text-blue-400 mt-1">Ready to review and deploy</p>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleOpenReviewModal}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          Review
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {/* Deploy Button (when there are pending changes) */}
-          {pendingChanges.length > 0 && (
-            <div className="h-16 bg-white/40 backdrop-blur-md border-t border-white/50 px-6 flex items-center justify-between flex-shrink-0">
-              <p className="text-sm font-semibold text-slate-800">
-                {pendingChanges.length} change{pendingChanges.length > 1 ? "s" : ""} ready to deploy
-              </p>
-              <button
-                onClick={handleConfirmAndPush}
-                disabled={isDeploying}
-                className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg transition-all hover:shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
-              >
-                {isDeploying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4" />
+          {/* Chat Input Area */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
+            className="px-4 py-6 border-t border-neutral-800/50 bg-neutral-900/30 backdrop-blur-xl flex-shrink-0"
+          >
+            <div className="max-w-2xl mx-auto">
+              {/* Media Preview */}
+              <AnimatePresence>
+                {selectedMedia && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mb-3 p-3 bg-neutral-800/50 border border-neutral-700/50 rounded-lg flex items-center gap-3"
+                  >
+                    {selectedMedia.type === "image" ? (
+                      <img 
+                        src={selectedMedia.data} 
+                        alt="Selected" 
+                        className="h-12 w-12 object-cover rounded border border-neutral-600"
+                      />
+                    ) : (
+                      <video 
+                        src={selectedMedia.data}
+                        controls
+                        className="h-12 w-20 object-cover rounded border border-neutral-600"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-xs text-neutral-400">
+                        {selectedMedia.type === "image" ? "Image" : "Video"} attached
+                      </p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={clearSelectedMedia}
+                      className="p-1 rounded hover:bg-neutral-700/50 text-neutral-500 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </motion.button>
+                  </motion.div>
                 )}
-                Deploy to GitHub
-              </button>
+              </AnimatePresence>
+
+              {/* Input Field */}
+              <div className="flex gap-3 items-end">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 text-neutral-400 hover:text-neutral-200 transition-colors flex-shrink-0"
+                  title="Attach image or video"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </motion.button>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleMediaUpload}
+                  accept="image/*,video/*"
+                  className="hidden"
+                />
+
+                <div className="flex-1 flex items-center gap-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg px-4 py-3 hover:border-neutral-600/50 transition-colors backdrop-blur-sm focus-within:border-blue-500/50">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendMessage()
+                      }
+                    }}
+                    placeholder="Describe what you want to build..."
+                    className="flex-1 bg-transparent text-white placeholder-neutral-500 text-sm outline-none"
+                    disabled={isSendingMessage}
+                  />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleSendMessage}
+                  disabled={isSendingMessage || !inputMessage.trim()}
+                  className="p-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex-shrink-0 shadow-lg shadow-blue-600/30"
+                >
+                  {isSendingMessage ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </motion.button>
+              </div>
             </div>
-          )}
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
 
-      {/* Review Changes Modal */}
+      {/* Review Modal */}
       <Dialog open={showReview} onOpenChange={setShowReview}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col space-y-4 bg-white/95 backdrop-blur-xl border border-white/60 z-[100]">
+        <DialogContent className="max-w-4xl bg-neutral-900/95 border-neutral-800 text-white backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="text-xl text-slate-800">Review Changes</DialogTitle>
-            <DialogDescription className="text-base text-slate-600">
-              Review the AI-generated changes before deploying to GitHub
+            <DialogTitle className="text-white">Review Changes</DialogTitle>
+            <DialogDescription className="text-neutral-400">
+              Review the generated code changes before deploying
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex gap-6 overflow-hidden">
-            {/* File List Sidebar */}
-            <div className="w-64 border border-slate-200 bg-slate-50/50 rounded-lg overflow-hidden flex flex-col">
-              <div className="bg-slate-100/80 px-4 py-3 border-b border-slate-200">
-                <p className="text-sm font-semibold text-slate-800">
-                  Changed Files ({pendingChanges.length})
-                </p>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-3 space-y-2">
-                  {pendingChanges.map((change) => (
-                    <div
-                      key={change.path}
-                      className={`flex items-start gap-2 px-3 py-2.5 rounded cursor-pointer hover:bg-slate-100 transition-colors ${
-                        selectedDiffFile === change.path
-                          ? "bg-slate-100 border-l-2 border-blue-500"
-                          : ""
-                      }`}
-                      onClick={() => setSelectedDiffFile(change.path)}
-                    >
-                      <div className={`h-4 w-4 mt-0.5 flex-shrink-0 rounded ${
-                        change.type === "create"
-                          ? "bg-green-500"
-                          : change.type === "delete"
-                            ? "bg-red-500"
-                            : "bg-blue-500"
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm break-all text-slate-800">{change.path}</p>
-                        <span className={`inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          change.type === "create"
-                            ? "bg-green-100 text-green-700"
-                            : change.type === "delete"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-blue-100 text-blue-700"
-                        }`}>
-                          {change.type === "create"
-                            ? "new"
-                            : change.type === "delete"
-                              ? "deleted"
-                              : "modified"}
-                        </span>
-                      </div>
+          <div className="flex gap-4 h-96">
+            <div className="w-48 border-r border-neutral-800 overflow-y-auto">
+              <div className="space-y-1 p-2">
+                {pendingChanges.map((change, index) => (
+                  <motion.button
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => setSelectedDiffFile(change.path)}
+                    className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
+                      selectedDiffFile === change.path
+                        ? "bg-blue-600/50 text-white"
+                        : "text-neutral-400 hover:bg-neutral-800/50"
+                    }`}
+                  >
+                    <div className="truncate">{change.path}</div>
+                    <div className="text-xs text-neutral-500">
+                      {change.type === "create" && "Create"}
+                      {change.type === "update" && "Update"}
+                      {change.type === "delete" && "Delete"}
                     </div>
-                  ))}
-                </div>
+                  </motion.button>
+                ))}
               </div>
             </div>
 
-            {/* Diff Viewer */}
-            <div className="flex-1 border border-slate-200 bg-slate-50/50 rounded-lg overflow-hidden flex flex-col">
-              {selectedDiffFile ? (
-                <>
-                  <div className="bg-slate-100/80 px-4 py-3 border-b border-slate-200">
-                    <p className="text-sm font-medium text-slate-800">{selectedDiffFile}</p>
-                  </div>
-                  <div className="flex-1">
-                    <CodeDiffViewer
-                      originalContent={originalFileContent}
-                      modifiedContent={
-                        pendingChanges.find((c) => c.path === selectedDiffFile)
-                          ?.content || ""
-                      }
-                      language={getLanguageFromFilename(selectedDiffFile)}
-                      isLoading={loadingOriginalContent}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-8">
-                    <Eye className="mx-auto h-12 w-12 text-slate-400 mb-3" />
-                    <p className="mt-4 text-sm text-slate-600">
-                      Select a file to view the diff
-                    </p>
-                  </div>
-                </div>
+            <div className="flex-1 overflow-hidden">
+              {selectedDiffFile && pendingChanges.find(c => c.path === selectedDiffFile) && (
+                <CodeDiffViewer
+                  filePath={selectedDiffFile}
+                  originalContent={originalFileContent}
+                  newContent={
+                    pendingChanges.find(c => c.path === selectedDiffFile)?.content || ""
+                  }
+                  isLoading={loadingOriginalContent}
+                  language={getLanguageFromFilename(selectedDiffFile)}
+                />
               )}
             </div>
           </div>
 
-          <DialogFooter className="flex justify-between items-center">
-            <Button
-              variant="outline"
+          <DialogFooter>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowReview(false)}
-              disabled={isDeploying}
-              className="border-slate-300 hover:bg-slate-50 text-slate-700"
+              className="px-4 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 transition-colors"
             >
               Cancel
-            </Button>
-            <Button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleConfirmAndPush}
               disabled={isDeploying}
-              className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold transition-colors flex items-center gap-2"
             >
-              {isDeploying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
-              Confirm & Push
-            </Button>
+              {isDeploying && <Loader2 className="h-4 w-4 animate-spin" />}
+              Deploy Changes
+            </motion.button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
