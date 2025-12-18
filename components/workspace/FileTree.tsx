@@ -34,16 +34,16 @@ function TreeNodeComponent({
       <div>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-accent"
+          className="flex w-full items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-neutral-800/50 text-neutral-400 transition-colors"
           style={{ paddingLeft: `${level * 12 + 8}px` }}
         >
           {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-neutral-600" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-4 w-4 text-neutral-600" />
           )}
-          <Folder className="h-4 w-4 text-muted-foreground" />
-          <span className="text-foreground">{node.name}</span>
+          <Folder className="h-4 w-4 text-neutral-600" />
+          <span className="text-neutral-300">{node.name}</span>
         </button>
         {isOpen && node.children && (
           <div>
@@ -66,13 +66,15 @@ function TreeNodeComponent({
     <button
       onClick={() => onSelectFile(node.path)}
       className={cn(
-        "flex w-full items-center gap-1 rounded px-2 py-1 text-sm hover:bg-accent",
-        isSelected && "bg-accent"
+        "flex w-full items-center gap-1 rounded px-2 py-1.5 text-sm transition-colors",
+        isSelected 
+          ? "bg-blue-600/30 text-blue-200 border border-blue-500/30" 
+          : "hover:bg-neutral-800/50 text-neutral-400 hover:text-neutral-300"
       )}
       style={{ paddingLeft: `${level * 12 + 28}px` }}
     >
-      <File className="h-4 w-4 text-muted-foreground" />
-      <span className="text-foreground">{node.name}</span>
+      <File className="h-4 w-4 text-neutral-600" />
+      <span>{node.name}</span>
     </button>
   )
 }
@@ -86,7 +88,7 @@ export function FileTree({
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-neutral-500" />
       </div>
     )
   }
@@ -94,7 +96,7 @@ export function FileTree({
   if (nodes.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-4">
-        <p className="text-sm text-muted-foreground">No files found</p>
+        <p className="text-sm text-neutral-500">No files found</p>
       </div>
     )
   }
