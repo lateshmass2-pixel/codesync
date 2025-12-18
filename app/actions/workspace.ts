@@ -24,7 +24,6 @@ interface CodeGenerationResult {
   }>
 }
 
-// Simplified to only use Gemini
 export type ModelProvider = "gemini"
 
 type GitCreateTreeParameters = RestEndpointMethodTypes["git"]["createTree"]["parameters"]
@@ -42,12 +41,22 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
     const octokit = new Octokit({ auth: session.accessToken })
     const [owner, repo] = repoFullName.split("/")
 
+    // 1. Try to fetch the tree from HEAD
     const { data } = await octokit.git.getTree({
       owner,
       repo,
       tree_sha: "HEAD",
       recursive: "true" as any,
-    })
+    }).catch((err: any) => {
+       // 2. Handle "Empty Repository" or "Branch not found" errors gracefully
+       if (err.status === 409 || (err.status === 404 && err.message?.toLowerCase().includes("empty"))) {
+         console.warn("⚠️ Repository appears empty (No HEAD found). Returning empty tree.");
+         return { data: { tree: [] } };
+       }
+       throw err; 
+    });
+
+    if (!data || !data.tree) return [];
 
     const tree: FileNode[] = []
     const dirMap = new Map<string, FileNode>()
@@ -114,25 +123,10 @@ export async function getFileTree(repoFullName: string): Promise<FileNode[]> {
 
     return tree
   } catch (error: any) {
-    console.error("Error fetching file tree:", error)
-    console.log(`Failed to fetch file tree for ${repoFullName}.`)
-    
-    if (error?.status) {
-      console.error(`Status: ${error.status}`)
+    console.error("Error fetching file tree:", error.message || error)
+    if (error.status === 404) {
+        throw new Error("Repository not found. Check permissions.");
     }
-    if (error?.message) {
-      console.error(`Message: ${error.message}`)
-    }
-
-    // Handle empty repositories (409 Conflict or 404 Not Found with specific message)
-    if (
-      error.status === 409 ||
-      (error.status === 404 && error.message?.toLowerCase().includes("empty"))
-    ) {
-      console.log("Empty repository detected. Returning empty file tree.")
-      return []
-    }
-
     throw new Error("Failed to fetch file tree")
   }
 }
@@ -182,6 +176,13 @@ export async function generateCode(
     const octokit = new Octokit({ auth: session.accessToken })
     const [owner, repo] = repoFullName.split("/")
 
+    console.log(`🚀 Action: generateCode | Repo: ${repoFullName}`);
+    
+    // Log video size ONLY (prevents terminal crash)
+    if (mediaData) {
+        console.log(`📹 Video Input: ${(mediaData.data.length / 1024 / 1024).toFixed(2)} MB`);
+    }
+
     // 1. Get File Tree
     const fileTree = await getFileTree(repoFullName)
     
@@ -213,7 +214,7 @@ export async function generateCode(
     
     let fileContextWithContent = ""
     
-    // Fetch content sequentially (limit to top 30 files)
+    // Fetch content sequentially (limit to top 30 files to avoid API limits)
     for (const filePath of allFiles.slice(0, 30)) { 
       try {
         const { data } = await octokit.repos.getContent({
@@ -249,14 +250,25 @@ export async function generateCode(
     const fileTreeContext = buildFileTreeContext(fileTree)
     const fullContext = `Repository Structure:\n${fileTreeContext}\n\nFile Contents:\n${fileContextWithContent}`
     
-    const imageString = mediaData ? `data:${mediaData.mimeType};base64,${mediaData.data}` : undefined;
+    // 4. Construct Image String Safely (The FIX for Google 400 Error)
+    let imageString = undefined;
+    if (mediaData) {
+        // If data ALREADY starts with "data:", don't add it again.
+        if (mediaData.data.startsWith("data:")) {
+            imageString = mediaData.data;
+        } else {
+            // Otherwise, construct the proper Data URL
+            imageString = `data:${mediaData.mimeType};base64,${mediaData.data}`;
+        }
+    }
 
-    // Directly call Gemini code generation
+    // 5. Call Gemini
     const result = await generateCodeWithGemini(prompt, fullContext, imageString)
     
     return result
+
   } catch (error) {
-    console.error("Error generating code:", error)
+    console.error("Error generating code:", error instanceof Error ? error.message : "Unknown error")
     throw new Error(error instanceof Error ? error.message : "Failed to generate code")
   }
 }
