@@ -12,7 +12,7 @@ export async function generateCode(userPrompt: string, fileContext: string, medi
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   
   // 🚀 STRATEGY: Try the newest model first, fallback to stable if busy
-  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"];
+  const modelsToTry = ["gemini-3-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
   
   let lastError;
 
